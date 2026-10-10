@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARROW TRADE PRO // Options Battle Simulator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/game.css">
+  <!-- TradingView Lightweight Charts (Local standalone copy with fallback) -->
+  <script src="/static/lightweight-charts.standalone.production.js"></script>
+</head>
+<body class="theme-obsidian">
+
+  <!-- TOP APP BAR -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">ARROW</span>
+          <span class="brand-badge">PRO SIMULATOR</span>
+        </div>
+      </div>
+
+      <!-- GAME MODE TOGGLE -->
+      <div class="segmented-control mode-selector">
+        <button id="btn-mode-index" class="segment-btn active" data-mode="index">
+          <span class="segment-icon">📈</span>
+          <span>Index Play</span>
+        </button>
+        <button id="btn-mode-stock" class="segment-btn" data-mode="stock">
+          <span class="segment-icon">🏢</span>
+          <span>Stock Play</span>
+        </button>
+      </div>
+
+      <!-- INSTRUMENT SELECTOR -->
+      <div class="instrument-picker">
+        <!-- Index Options -->
+        <div id="index-pills" class="pill-group">
+          <button class="pill-btn active" data-symbol="NIFTY">Nifty 50</button>
+          <button class="pill-btn" data-symbol="SENSEX">BSE Sensex</button>
+          <button class="pill-btn" data-symbol="BANKNIFTY">Bank Nifty</button>
+        </div>
+        <!-- Stock Selector (shown in stock mode) -->
+        <div id="stock-select-wrapper" class="stock-dropdown-wrapper hidden">
+          <button id="btn-random-stock" class="btn-action-sm glow-cyan" title="Pick Random Liquid FNO Stock">
+            <span>🎲 Random Stock</span>
+          </button>
+          <select id="stock-select" class="cyber-select">
+            <option value="RELIANCE">Reliance Ind</option>
+            <option value="TCS">TCS Ltd</option>
+            <option value="INFY">Infosys Ltd</option>
+            <option value="HDFCBANK">HDFC Bank</option>
+            <option value="ICICIBANK">ICICI Bank</option>
+            <option value="SBIN">State Bank of India</option>
+            <option value="BHARTIARTL">Bharti Airtel</option>
+            <option value="LT">Larsen & Toubro</option>
+            <option value="ITC">ITC Ltd</option>
+            <option value="BAJFINANCE">Bajaj Finance</option>
+            <option value="AXISBANK">Axis Bank</option>
+            <option value="MARUTI">Maruti Suzuki</option>
+            <option value="TITAN">Titan Company</option>
+            <option value="SUNPHARMA">Sun Pharma</option>
+            <option value="KOTAKBANK">Kotak Bank</option>
+          </select>
+        </div>
+
+        <button id="btn-new-day" class="btn-action-sm glow-amber" title="Generate New Mystery Day">
+          <span>🎲 New Day</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CENTER STATUS: MYSTERY DATE & REPLAY CLOCK -->
+    <div class="header-center">
+      <div class="date-chip" id="date-chip-container">
+        <span class="calendar-icon">📅</span>
+        <span id="display-date" class="date-text">Loading...</span>
+        <button id="btn-toggle-blind" class="blind-toggle" title="Toggle Blind Practice Mode (Hide date & symbol for unbiased testing)">
+          <span id="blind-icon">👁️</span>
+          <span id="blind-label">Blind Off</span>
+        </button>
+      </div>
+
+      <div class="sim-clock-hud">
+        <span class="clock-icon">⏰</span>
+        <span id="sim-time" class="time-readout">09:15 AM</span>
+        <span class="bar-counter" id="bar-counter">Bar 1 / 75</span>
+      </div>
+    </div>
+
+    <!-- RIGHT HUD: CAPITAL, P&L, RANK, SOUND -->
+    <div class="header-right">
+      <!-- Balance Card -->
+      <div class="hud-stat clickable" id="hud-balance-btn" title="Click to Customize or Reset Starting Balance">
+        <span class="stat-label">STARTING CAPITAL <span class="edit-icon">✏️</span></span>
+        <span class="stat-value font-mono" id="hud-capital">₹ 5,00,000</span>
+      </div>
+
+      <!-- Day PnL -->
+      <div class="hud-stat">
+        <span class="stat-label">DAY P&amp;L</span>
+        <span class="stat-value font-mono neutral" id="hud-pnl">₹ 0.00 <span class="stat-pct" id="hud-pnl-pct">(0.0%)</span></span>
+      </div>
+
+      <!-- Trader Rank & XP -->
+      <div class="trader-rank-hud" id="hud-rank-container">
+        <div class="rank-badge" id="hud-rank-badge">Floor Trader</div>
+        <div class="xp-bar-wrapper">
+          <div class="xp-bar-fill" id="hud-xp-bar" style="width: 15%;"></div>
+        </div>
+      </div>
+
+      <!-- Audio Mute Toggle -->
+      <button id="btn-audio-toggle" class="icon-btn active" title="Audio Effects (Synthesizer Sound)">
+        <span id="audio-icon">🔊</span>
+      </button>
+
+      <!-- Shortcuts / Help -->
+      <button id="btn-help-modal" class="icon-btn" title="Keyboard Shortcuts & Pro Guide">
+        <span>⌨️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN APP LAYOUT (CHART WORKSPACE + DERIVATIVES TERMINAL) -->
+  <main class="app-body">
+
+    <!-- LEFT STAGE: TRADINGVIEW CHART & REPLAY DECK -->
+    <section class="chart-stage">
+
+      <!-- CHART TOP TICKER BAR -->
+      <div class="chart-ticker-bar">
+        <div class="ticker-left">
+          <div class="instrument-title-wrapper">
+            <h1 id="ticker-symbol" class="ticker-symbol">NIFTY</h1>
+            <span id="ticker-badge" class="instrument-type-badge">NSE INDEX</span>
+            <span id="ticker-desc" class="ticker-desc">Nifty 50 Index</span>
+          </div>
+
+          <div class="live-spot-quote">
+            <span class="spot-label">SPOT LTP</span>
+            <span id="spot-price" class="spot-price font-mono">--</span>
+            <span id="spot-change" class="spot-change font-mono neutral">-- (0.00%)</span>
+          </div>
+        </div>
+
+        <!-- OHLC Readout -->
+        <div class="ohlc-readout font-mono">
+          <span>O: <b id="bar-open">--</b></span>
+          <span>H: <b id="bar-high">--</b></span>
+          <span>L: <b id="bar-low">--</b></span>
+          <span>C: <b id="bar-close">--</b></span>
+          <span>V: <b id="bar-vol">--</b></span>
+        </div>
+
+        <!-- Technical Overlays -->
+        <div class="indicator-toggles">
+          <button id="toggle-ema9" class="indicator-btn active" data-indicator="ema9">EMA 9</button>
+          <button id="toggle-ema21" class="indicator-btn active" data-indicator="ema21">EMA 21</button>
+          <button id="toggle-vwap" class="indicator-btn active" data-indicator="vwap">VWAP</button>
+        </div>
+
+        <!-- Chart Drawing Tools (Fibonacci & Chart Order Placement) -->
+        <div class="chart-tools-group">
+          <button id="btn-draw-fib" class="tool-btn glow-violet" title="Draw 2-Point Fibonacci Retracement on Chart">
+            <span>📐 Draw Fib</span>
+          </button>
+          <button id="btn-auto-fib" class="tool-btn" title="Auto-detect Intraday High/Low and Plot Fib Levels">
+            <span>⚡ Auto Fib</span>
+          </button>
+          <button id="btn-clear-fib" class="tool-btn" title="Clear Fibonacci Levels">
+            <span>✕ Clear</span>
+          </button>
+          <span class="tool-separator"></span>
+          <button id="btn-chart-pick-target" class="tool-btn glow-green" title="Click anywhere on chart to place Target level">
+            <span>🎯 Place Target</span>
+          </button>
+          <button id="btn-chart-pick-sl" class="tool-btn glow-red" title="Click anywhere on chart to place Stop Loss level">
+            <span>🛑 Place SL</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TRADINGVIEW LIGHTWEIGHT CHART CANVAS -->
+      <div class="chart-canvas-container" id="chart-wrapper">
+        <div id="tv-chart" class="tv-chart"></div>
+
+        <!-- INTERACTIVE CHART ACTION BANNER (When drawing Fib or Placing SL/Target) -->
+        <div id="chart-action-banner" class="chart-action-banner hidden">
+          <span class="action-pulse-dot"></span>
+          <span id="chart-action-text" class="action-text">Click Point 1 on chart...</span>
+          <button id="btn-cancel-chart-action" class="btn-cancel-action">Cancel (Esc)</button>
+        </div>
+
+        <!-- ACTIVE TRADE HUD OVERLAY (when trade is active) -->
+        <div id="trade-chart-overlay" class="trade-chart-overlay hidden">
+          <div class="active-trade-pill">
+            <span class="pulsing-dot"></span>
+            <span id="overlay-strike-badge" class="strike-pill">23300 CE</span>
+            <span class="overlay-qty" id="overlay-qty">50 Qty</span>
+            <span class="overlay-entry" id="overlay-entry">Entry: ₹145.20</span>
+            <span class="overlay-cur" id="overlay-cur">LTP: ₹162.00</span>
+            <span class="overlay-pnl font-mono" id="overlay-pnl">+₹840 (+11.5%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM REPLAY CONTROL DECK (TESLA STYLE) -->
+      <div class="replay-deck">
+        <div class="deck-controls">
+          <!-- Reset -->
+          <button id="btn-replay-restart" class="deck-btn" title="Restart Day from 09:15 AM (R)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            <span>Restart</span>
+          </button>
+
+          <!-- Play / Pause (Giant Tactical) -->
+          <button id="btn-replay-play" class="deck-btn-primary glow-play" title="Play / Pause Auto Replay (Spacebar)">
+            <span id="play-icon" class="play-icon">▶</span>
+            <span id="play-text">PLAY</span>
+          </button>
+
+          <!-- Step 1 Bar -->
+          <button id="btn-replay-step" class="deck-btn glow-step" title="Reveal Next 5-Minute Candle (Right Arrow)">
+            <span>Next Bar ⏭️</span>
+          </button>
+
+          <!-- Speed Controls -->
+          <div class="speed-selector">
+            <span class="speed-label">SPEED</span>
+            <div class="segmented-control sm">
+              <button class="segment-btn" data-speed="2000">2s</button>
+              <button class="segment-btn active" data-speed="1000">1s</button>
+              <button class="segment-btn" data-speed="500">0.5s</button>
+              <button class="segment-btn" data-speed="200">Fast</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TIMELINE SCRUBBER -->
+        <div class="timeline-slider-wrapper">
+          <span class="time-edge">09:15</span>
+          <input type="range" id="timeline-slider" min="0" max="74" value="0" step="1" class="cyber-slider">
+          <span class="time-edge">15:30</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT STAGE: PRO DERIVATIVES TRADING TERMINAL -->
+    <aside class="terminal-stage">
+
+      <!-- ACTIVE POSITION DECK (Appears when trade is open) -->
+      <div id="position-deck" class="position-deck hidden">
+        <div class="deck-header">
+          <div class="deck-title-group">
+            <span class="live-tag">LIVE POSITION</span>
+            <span id="pos-symbol-tag" class="pos-badge">NIFTY 23300 CE</span>
+          </div>
+          <button id="btn-exit-position" class="btn-exit-market glow-red" title="Exit Trade at Market (Key X)">
+            <span>Exit Market 🚪</span>
+          </button>
+        </div>
+
+        <div class="pos-pnl-banner">
+          <div class="pnl-row">
+            <span class="pnl-label">UNREALIZED P&amp;L</span>
+            <span id="pos-live-pnl" class="pnl-amount font-mono positive">+₹ 1,840.00</span>
+          </div>
+          <div class="pnl-sub-row font-mono">
+            <span id="pos-live-roi" class="roi-tag positive">+25.3%</span>
+            <span id="pos-capital-deployed" class="pos-muted">Capital: ₹7,260</span>
+          </div>
+        </div>
+
+        <!-- Target & SL Distance Progress -->
+        <div class="pos-target-meter">
+          <div class="meter-labels">
+            <span class="meter-sl font-mono" id="pos-sl-val">SL: ₹123.40 (-15%)</span>
+            <span class="meter-cur font-mono" id="pos-cur-val">LTP: ₹182.00</span>
+            <span class="meter-target font-mono" id="pos-tg-val">Target: ₹188.70 (+30%)</span>
+          </div>
+          <div class="meter-track">
+            <div id="meter-fill" class="meter-fill" style="left: 50%; width: 35%;"></div>
+            <div id="meter-marker" class="meter-marker" style="left: 85%;"></div>
+          </div>
+        </div>
+
+        <!-- Quick Defense Actions -->
+        <div class="pos-quick-actions">
+          <button id="btn-sl-breakeven" class="btn-sub-action" title="Move Stop Loss to Entry Cost">
+            <span>🛡️ Move SL to Cost</span>
+          </button>
+          <button id="btn-trail-sl" class="btn-sub-action" title="Trail Stop Loss Higher">
+            <span>📈 Trail SL +10%</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- OPTIONS ORDER DESK -->
+      <div class="order-desk-panel">
+        <div class="panel-header">
+          <div class="header-title-box">
+            <h2 class="panel-title">OPTIONS ORDER DESK</h2>
+            <p class="panel-subtitle">Black-Scholes Simulated Live Greeks</p>
+          </div>
+          <div class="lot-size-badge" id="badge-lot-size">
+            Lot: <b>25 Qty</b>
+          </div>
+        </div>
+
+        <!-- EXPIRY SELECTION -->
+        <div class="form-group">
+          <label class="form-label">EXPIRY CONTRACT</label>
+          <div class="segmented-control expiry-selector">
+            <button class="segment-btn active" data-expiry="weekly">
+              <span>Weekly</span>
+              <span class="decay-chip">High Theta</span>
+            </button>
+            <button class="segment-btn" data-expiry="next_weekly">
+              <span>Next Weekly</span>
+              <span class="decay-chip">Medium</span>
+            </button>
+            <button class="segment-btn" data-expiry="monthly">
+              <span>Monthly</span>
+              <span class="decay-chip">Low Theta</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CALL / PUT DIRECTION BIAS -->
+        <div class="form-group">
+          <label class="form-label">DIRECTION / OPTION TYPE</label>
+          <div class="direction-toggle">
+            <button id="btn-opt-call" class="dir-btn active call glow-green" data-type="CE">
+              <span class="dir-icon">↗️</span>
+              <span class="dir-title">BUY CALL (CE)</span>
+              <span class="dir-desc">Bullish Bet</span>
+            </button>
+            <button id="btn-opt-put" class="dir-btn put" data-type="PE">
+              <span class="dir-icon">↘️</span>
+              <span class="dir-title">BUY PUT (PE)</span>
+              <span class="dir-desc">Bearish Bet</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STRIKE MATRIX LADDER -->
+        <div class="form-group">
+          <div class="label-with-meta">
+            <label class="form-label">SELECT STRIKE PRICE</label>
+            <span class="meta-tag font-mono" id="strike-step-label">Step: 50 pts</span>
+          </div>
+
+          <div class="strike-matrix-table" id="strike-matrix-table">
+            <!-- Dynamically populated via JS -->
+            <div class="table-loading">Generating Strike Ladder...</div>
+          </div>
+        </div>
+
+        <!-- POSITION SIZING & LOTS CALCULATOR -->
+        <div class="form-group position-sizing-container">
+          <div class="label-with-meta">
+            <label class="form-label">POSITION SIZING (RISK MANAGEMENT)</label>
+            <div class="sizing-mode-toggle">
+              <button id="btn-sizing-risk" class="sizing-tab active" data-sizing="risk">🎯 Risk %</button>
+              <button id="btn-sizing-lots" class="sizing-tab" data-sizing="lots">🔢 Fixed Lots</button>
+            </div>
+          </div>
+
+          <!-- OPTION A: RISK % SIZING (AUTO-CALCULATED LOTS) -->
+          <div id="box-risk-sizing" class="risk-sizing-box">
+            <div class="risk-pct-header">
+              <span class="sub-label">RISK PER TRADE:</span>
+              <span id="risk-amount-readout" class="risk-amt-badge font-mono">₹ 10,000 (1.0%)</span>
+            </div>
+            <div class="risk-pct-chips">
+              <button class="risk-chip" data-risk="0.5">0.5%</button>
+              <button class="risk-chip active" data-risk="1.0">1.0%</button>
+              <button class="risk-chip" data-risk="1.5">1.5%</button>
+              <button class="risk-chip" data-risk="2.0">2.0%</button>
+              <button class="risk-chip" data-risk="3.0">3.0%</button>
+              <input type="number" id="input-custom-risk" min="0.1" max="10" step="0.1" value="1.0" class="cyber-mini-input font-mono" title="Custom Risk %">
+              <span class="unit">%</span>
+            </div>
+            <div class="auto-calc-results">
+              <div class="calc-res-item">
+                <span class="calc-lbl">MAX RISK</span>
+                <span id="calc-max-loss" class="calc-val font-mono negative">₹ 10,000</span>
+              </div>
+              <div class="calc-res-item highlight">
+                <span class="calc-lbl">AUTO LOTS</span>
+                <span id="calc-lots-result" class="calc-val font-mono">18 Lots (450 Qty)</span>
+              </div>
+              <div class="calc-res-item">
+                <span class="calc-lbl">RISK / LOT</span>
+                <span id="calc-risk-per-lot" class="calc-val font-mono">₹ 544.50</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- OPTION B: MANUAL FIXED LOTS -->
+          <div id="box-manual-lots" class="lot-picker-row hidden">
+            <div class="lot-quick-pills">
+              <button class="lot-pill" data-lots="1">1</button>
+              <button class="lot-pill active" data-lots="2">2</button>
+              <button class="lot-pill" data-lots="5">5</button>
+              <button class="lot-pill" data-lots="10">10</button>
+              <button id="btn-lot-max" class="lot-pill max">MAX</button>
+            </div>
+            <input type="number" id="input-lots" min="1" max="100" value="2" class="cyber-num-input font-mono">
+          </div>
+          <div class="qty-info-caption font-mono" id="total-qty-readout">450 Qty (18 Lots)</div>
+        </div>
+
+        <!-- PREDEFINED & MANUAL STOP LOSS / TARGET (ON-CHART EDITABLE) -->
+        <div class="risk-management-card">
+          <!-- STOP LOSS ROW -->
+          <div class="risk-col">
+            <div class="risk-header">
+              <span class="risk-title stop-loss">🛑 STOP LOSS</span>
+              <button id="btn-chart-sl-quick" class="btn-micro-chart glow-red" title="Click on chart to set SL visually">
+                <span>🎯 Pick on Chart</span>
+              </button>
+              <span class="risk-readout font-mono" id="sl-readout">-15% (₹123.40)</span>
+            </div>
+            <div class="risk-inputs-row">
+              <div class="preset-chips">
+                <button class="preset-chip" data-sl="10">10%</button>
+                <button class="preset-chip active" data-sl="15">15%</button>
+                <button class="preset-chip" data-sl="25">25%</button>
+                <button class="preset-chip" data-sl="35">35%</button>
+              </div>
+              <div class="manual-price-box">
+                <label>₹</label>
+                <input type="number" id="input-sl-price" step="0.05" class="cyber-price-input font-mono" placeholder="SL ₹">
+              </div>
+            </div>
+          </div>
+
+          <!-- TARGET ROW -->
+          <div class="risk-col">
+            <div class="risk-header">
+              <span class="risk-title target">🎯 TARGET</span>
+              <button id="btn-chart-target-quick" class="btn-micro-chart glow-green" title="Click on chart to set Target visually">
+                <span>🎯 Pick on Chart</span>
+              </button>
+              <span class="risk-readout font-mono" id="target-readout">+30% (₹188.70)</span>
+            </div>
+            <div class="risk-inputs-row">
+              <div class="preset-chips">
+                <button class="preset-chip" data-target="20">20%</button>
+                <button class="preset-chip active" data-target="30">30%</button>
+                <button class="preset-chip" data-target="50">50%</button>
+                <button class="preset-chip" data-target="100">100%</button>
+              </div>
+              <div class="manual-price-box">
+                <label>₹</label>
+                <input type="number" id="input-target-price" step="0.05" class="cyber-price-input font-mono" placeholder="Target ₹">
+              </div>
+            </div>
+          </div>
+
+          <div class="rr-banner">
+            <span>RISK : REWARD</span>
+            <span class="rr-value font-mono" id="rr-ratio">1 : 2.0</span>
+          </div>
+        </div>
+
+        <!-- ORDER SUMMARY & CAPITAL CHECK -->
+        <div class="order-summary-row">
+          <div class="summary-item">
+            <span class="summary-label">PREMIUM</span>
+            <span class="summary-val font-mono" id="summary-premium">₹ 145.20</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">TOTAL CAPITAL</span>
+            <span class="summary-val font-mono" id="summary-total-cost">₹ 7,260.00</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">EST. DELTA</span>
+            <span class="summary-val font-mono" id="summary-delta">0.52 Δ</span>
+          </div>
+        </div>
+
+        <!-- GIANT TACTILE EXECUTE BUTTON -->
+        <button id="btn-execute-order" class="btn-execute glow-call">
+          <span class="btn-exec-icon">⚡</span>
+          <span id="btn-execute-text" class="btn-exec-text">BUY 2 LOTS 23300 CE (₹7,260)</span>
+        </button>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- BOTTOM DRAWER: TRADE JOURNAL & PERFORMANCE HISTORY -->
+  <footer class="app-footer-drawer">
+    <div class="drawer-header" id="drawer-toggle-btn">
+      <div class="drawer-title-group">
+        <span class="drawer-icon">📋</span>
+        <span class="drawer-title">SESSION TRADE JOURNAL</span>
+        <span class="trade-count-badge" id="journal-trade-count">0 Trades</span>
+      </div>
+      <div class="drawer-quick-stats">
+        <span>Win Rate: <b id="journal-winrate">0%</b></span>
+        <span>Realized P&amp;L: <b id="journal-total-pnl" class="neutral">₹0.00</b></span>
+        <span class="chevron" id="drawer-chevron">▲</span>
+      </div>
+    </div>
+
+    <div class="drawer-content" id="drawer-content">
+      <div class="journal-table-wrapper">
+        <table class="cyber-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Time</th>
+              <th>Instrument</th>
+              <th>Type</th>
+              <th>Qty</th>
+              <th>Buy ₹</th>
+              <th>Sell ₹</th>
+              <th>Exit Reason</th>
+              <th>Net P&amp;L</th>
+              <th>ROI %</th>
+            </tr>
+          </thead>
+          <tbody id="journal-tbody">
+            <tr class="empty-row">
+              <td colspan="10">No closed trades yet in this session. Take an option bet above to start journaling!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================== -->
+  <!-- MODALS -->
+  <!-- ============================================================== -->
+
+  <!-- MODAL 1: END OF DAY (EOD) PERFORMANCE REPORT CARD (TESLA / APPLE STYLE) -->
+  <div id="modal-eod" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal eod-card">
+      <div class="eod-badge-glow" id="eod-badge-icon">🏆</div>
+      <h2 class="eod-title" id="eod-headline">DAY COMPLETE!</h2>
+      <p class="eod-subtitle" id="eod-subtext">09:15 to 15:30 Intraday Session Concluded</p>
+
+      <div class="eod-pnl-hero">
+        <span class="eod-pnl-label">DAY NET P&amp;L</span>
+        <span class="eod-pnl-val font-mono" id="eod-pnl-hero">+₹ 14,850.00</span>
+        <span class="eod-roi-val font-mono" id="eod-roi-hero">+2.97% on Capital</span>
+      </div>
+
+      <div class="eod-metrics-grid">
+        <div class="eod-metric">
+          <span class="metric-label">TRADES</span>
+          <span class="metric-num font-mono" id="eod-trades">4</span>
+        </div>
+        <div class="eod-metric">
+          <span class="metric-label">WIN RATE</span>
+          <span class="metric-num font-mono" id="eod-winrate">75.0%</span>
+        </div>
+        <div class="eod-metric">
+          <span class="metric-label">PROFIT FACTOR</span>
+          <span class="metric-num font-mono" id="eod-pf">3.4</span>
+        </div>
+        <div class="eod-metric">
+          <span class="metric-label">XP GAINED</span>
+          <span class="metric-num font-mono glow-text" id="eod-xp">+240 XP</span>
+        </div>
+      </div>
+
+      <div class="eod-rating-banner" id="eod-rating-banner">
+        <span>Trader Performance Tier:</span>
+        <strong id="eod-tier-name">S-Tier Disciplined Sniper ⭐⭐⭐</strong>
+      </div>
+
+      <div class="eod-actions">
+        <button id="btn-eod-next-day" class="btn-primary glow-play">
+          <span>🎲 Next Mystery Day</span>
+        </button>
+        <button id="btn-eod-replay-day" class="btn-secondary">
+          <span>🔄 Replay Same Day</span>
+        </button>
+        <button id="btn-eod-close" class="btn-ghost">
+          <span>Inspect Journal</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: STARTING CAPITAL & ACCOUNT SETTINGS -->
+  <div id="modal-settings" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal settings-card">
+      <div class="modal-close-btn" id="btn-close-settings">✕</div>
+      <h2 class="modal-title">TRADING ACCOUNT CAPITAL</h2>
+      <p class="modal-subtitle">Configure starting balance and virtual simulator funds</p>
+
+      <div class="capital-preset-grid">
+        <button class="capital-card" data-cap="100000">
+          <span class="cap-name">Rookie Trader</span>
+          <span class="cap-amount font-mono">₹ 1,00,000</span>
+          <span class="cap-desc">Disciplined small-account growth challenge</span>
+        </button>
+        <button class="capital-card" data-cap="500000">
+          <span class="cap-name">Prop Trader</span>
+          <span class="cap-amount font-mono">₹ 5,00,000</span>
+          <span class="cap-desc">Standard professional intra-day buying power</span>
+        </button>
+        <button class="capital-card active" data-cap="1000000">
+          <span class="cap-name">Pro Trader (Default)</span>
+          <span class="cap-amount font-mono">₹ 10,00,000</span>
+          <span class="cap-desc">10L Pro Account (1% Risk = ₹10,000/trade)</span>
+        </button>
+      </div>
+
+      <div class="custom-cap-input-row">
+        <label>Or Enter Custom Capital (₹):</label>
+        <input type="number" id="input-custom-capital" value="1000000" min="10000" step="10000" class="cyber-input font-mono">
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-save-capital" class="btn-primary glow-play">Save &amp; Reset Balance</button>
+        <button id="btn-cancel-settings" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: KEYBOARD SHORTCUTS & HELP -->
+  <div id="modal-help" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal help-card">
+      <div class="modal-close-btn" id="btn-close-help">✕</div>
+      <h2 class="modal-title">PRO TRADER SHORTCUTS &amp; GUIDE</h2>
+      <p class="modal-subtitle">Master the market like a Dalal Street Hedge Fund PM</p>
+
+      <div class="shortcuts-grid">
+        <div class="shortcut-item">
+          <kbd>Space</kbd>
+          <span>Play / Pause Auto-Replay</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>→</kbd>
+          <span>Step 1 Candle Forward (5-min bar)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>R</kbd>
+          <span>Restart Day (09:15 AM)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>B</kbd>
+          <span>Select BUY CALL (CE)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>P</kbd>
+          <span>Select BUY PUT (PE)</span>
+        </div>
+        <div class="shortcut-item">
+          <kbd>X</kbd>
+          <span>Square-Off / Exit Open Position</span>
+        </div>
+      </div>
+
+      <div class="rules-box">
+        <h3>🎯 How the Simulator Works:</h3>
+        <ul>
+          <li><b>Authentic Historical Data:</b> Real 5-minute OHLCV candles queried directly from Arrow Trade broker.</li>
+          <li><b>Realistic Black-Scholes Greeks:</b> Option premiums move dynamically based on Spot Price, Delta, Gamma, and intraday Theta decay.</li>
+          <li><b>Intra-bar Execution:</b> If the candle's High/Low wick touches your predefined Target or Stop Loss, your trade exits automatically!</li>
+          <li><b>Blind Mode:</b> Hide the date and symbol to test your pure price action and market structure intuition without bias.</li>
+        </ul>
+      </div>
+
+      <button id="btn-got-it" class="btn-primary" style="margin-top: 18px; width: 100%;">Got It, Let's Trade!</button>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPT -->
+  <script src="/static/game.js"></script>
+</body>
+</html>

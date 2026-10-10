@@ -1,0 +1,13 @@
+{
+  "starting_balance": 1000000.0,
+  "current_balance": 1000000.0,
+  "all_time_pnl": 0.0,
+  "xp": 0,
+  "rank": "Floor Trader",
+  "trades_count": 0,
+  "wins": 0,
+  "losses": 0,
+  "sound_enabled": true,
+  "blind_mode": false,
+  "trade_history": []
+}

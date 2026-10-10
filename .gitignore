@@ -1,0 +1,23 @@
+# Python virtualenv & caches
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Sensitive API tokens & credentials
+.env
+.token_cache.json
+*.pem
+*.key
+
+# Vercel deployment artifacts
+.vercel/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

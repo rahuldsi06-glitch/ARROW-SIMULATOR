@@ -1,0 +1,1100 @@
+{
+  "summary": {
+    "initial_capital": 1000000.0,
+    "ending_capital": 1157384.14,
+    "net_profit": 157384.14,
+    "return_pct": 15.74,
+    "max_drawdown_pct": 9.06,
+    "profit_factor": 1.74
+  },
+  "period": {
+    "start": "2026-06-12",
+    "end": "2026-10-09",
+    "total_trading_days": 83,
+    "days_traded": 35,
+    "days_skipped_inside": 25,
+    "days_no_entry_fill": 23
+  },
+  "metrics": {
+    "total_trades": 35,
+    "winning_trades": 14,
+    "losing_trades": 21,
+    "breakeven_trades": 0,
+    "win_rate_pct": 40.0,
+    "avg_trade_pnl": 4496.69,
+    "largest_win": 57590.83,
+    "largest_loss": -11544.89
+  },
+  "trades": [
+    {
+      "date": "2026-06-12",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 23327.25,
+      "pdl": 23072.4,
+      "or_high": 23455.9,
+      "or_low": 23400.55,
+      "entry_time": "2026-06-12 11:45:00+05:30",
+      "entry_price": 23387.45,
+      "initial_sl": 23410.65,
+      "risk_points": 23.2,
+      "total_lots": 34,
+      "legs": [
+        {
+          "exit_time": "2026-06-12 12:45:00+05:30",
+          "lots": 10,
+          "exit_price": 23317.85,
+          "gain_R": 3.0,
+          "pnl_rupees": 8823.53,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-06-12 13:15:00+05:30",
+          "lots": 24,
+          "exit_price": 23387.45,
+          "gain_R": 0.0,
+          "pnl_rupees": 0.0,
+          "reason": "Breakeven SL Hit"
+        }
+      ],
+      "total_pnl": 8823.53,
+      "account_capital": 1008823.53
+    },
+    {
+      "date": "2026-06-17",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24002.25,
+      "pdl": 23889.25,
+      "or_high": 24045.45,
+      "or_low": 23969.75,
+      "entry_time": "2026-06-17 12:15:00+05:30",
+      "entry_price": 24040.52,
+      "initial_sl": 24017.7,
+      "risk_points": 22.83,
+      "total_lots": 35,
+      "legs": [
+        {
+          "exit_time": "2026-06-17 13:00:00+05:30",
+          "lots": 35,
+          "exit_price": 24017.7,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 998823.53
+    },
+    {
+      "date": "2026-06-18",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 24107.85,
+      "pdl": 23969.75,
+      "or_high": 24129.6,
+      "or_low": 24059.65,
+      "entry_time": "2026-06-18 11:30:00+05:30",
+      "entry_price": 24051.78,
+      "initial_sl": 24066.35,
+      "risk_points": 14.57,
+      "total_lots": 54,
+      "legs": [
+        {
+          "exit_time": "2026-06-18 11:45:00+05:30",
+          "lots": 54,
+          "exit_price": 24066.35,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 988823.53
+    },
+    {
+      "date": "2026-06-19",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 24188.95,
+      "pdl": 24037.2,
+      "or_high": 23990.85,
+      "or_low": 23940.45,
+      "entry_time": "2026-06-19 10:15:00+05:30",
+      "entry_price": 23987.35,
+      "initial_sl": 23963.6,
+      "risk_points": 23.75,
+      "total_lots": 33,
+      "legs": [
+        {
+          "exit_time": "2026-06-19 10:30:00+05:30",
+          "lots": 33,
+          "exit_price": 23963.6,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 978823.53
+    },
+    {
+      "date": "2026-06-22",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24046.5,
+      "pdl": 23902.0,
+      "or_high": 24141.6,
+      "or_low": 24073.8,
+      "entry_time": "2026-06-22 10:15:00+05:30",
+      "entry_price": 24144.58,
+      "initial_sl": 24129.5,
+      "risk_points": 15.08,
+      "total_lots": 53,
+      "legs": [
+        {
+          "exit_time": "2026-06-22 12:00:00+05:30",
+          "lots": 53,
+          "exit_price": 24129.5,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 968823.53
+    },
+    {
+      "date": "2026-06-23",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 24168.0,
+      "pdl": 24073.8,
+      "or_high": 24095.05,
+      "or_low": 24040.75,
+      "entry_time": "2026-06-23 09:45:00+05:30",
+      "entry_price": 24110.62,
+      "initial_sl": 24088.2,
+      "risk_points": 22.42,
+      "total_lots": 35,
+      "legs": [
+        {
+          "exit_time": "2026-06-23 11:00:00+05:30",
+          "lots": 35,
+          "exit_price": 24088.2,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 958823.53
+    },
+    {
+      "date": "2026-06-25",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24089.7,
+      "pdl": 23790.25,
+      "or_high": 24169.4,
+      "or_low": 24108.05,
+      "entry_time": "2026-06-25 10:00:00+05:30",
+      "entry_price": 24162.58,
+      "initial_sl": 24140.15,
+      "risk_points": 22.42,
+      "total_lots": 35,
+      "legs": [
+        {
+          "exit_time": "2026-06-25 11:45:00+05:30",
+          "lots": 10,
+          "exit_price": 24229.85,
+          "gain_R": 3.0,
+          "pnl_rupees": 8571.43,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-06-25 14:00:00+05:30",
+          "lots": 25,
+          "exit_price": 24162.58,
+          "gain_R": 0.0,
+          "pnl_rupees": 0.0,
+          "reason": "Breakeven SL Hit"
+        }
+      ],
+      "total_pnl": 8571.43,
+      "account_capital": 967394.96
+    },
+    {
+      "date": "2026-06-30",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24120.0,
+      "pdl": 23925.15,
+      "or_high": 24031.6,
+      "or_low": 23890.8,
+      "entry_time": "2026-06-30 09:45:00+05:30",
+      "entry_price": 23880.78,
+      "initial_sl": 23899.5,
+      "risk_points": 18.72,
+      "total_lots": 42,
+      "legs": [
+        {
+          "exit_time": "2026-06-30 10:00:00+05:30",
+          "lots": 42,
+          "exit_price": 23899.5,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 957394.96
+    },
+    {
+      "date": "2026-07-02",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24049.6,
+      "pdl": 23896.0,
+      "or_high": 24127.25,
+      "or_low": 24062.2,
+      "entry_time": "2026-07-02 09:45:00+05:30",
+      "entry_price": 24133.65,
+      "initial_sl": 24108.1,
+      "risk_points": 25.55,
+      "total_lots": 31,
+      "legs": [
+        {
+          "exit_time": "2026-07-02 10:00:00+05:30",
+          "lots": 31,
+          "exit_price": 24108.1,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 947394.96
+    },
+    {
+      "date": "2026-07-03",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24194.55,
+      "pdl": 24062.2,
+      "or_high": 24368.0,
+      "or_low": 24295.45,
+      "entry_time": "2026-07-03 12:15:00+05:30",
+      "entry_price": 24362.02,
+      "initial_sl": 24350.8,
+      "risk_points": 11.23,
+      "total_lots": 71,
+      "legs": [
+        {
+          "exit_time": "2026-07-03 12:30:00+05:30",
+          "lots": 71,
+          "exit_price": 24350.8,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 937394.96
+    },
+    {
+      "date": "2026-07-07",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24458.25,
+      "pdl": 24290.05,
+      "or_high": 24482.1,
+      "or_low": 24428.5,
+      "entry_time": "2026-07-07 10:15:00+05:30",
+      "entry_price": 24481.48,
+      "initial_sl": 24467.75,
+      "risk_points": 13.72,
+      "total_lots": 58,
+      "legs": [
+        {
+          "exit_time": "2026-07-07 10:45:00+05:30",
+          "lots": 58,
+          "exit_price": 24467.75,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 927394.96
+    },
+    {
+      "date": "2026-07-10",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24133.35,
+      "pdl": 23926.6,
+      "or_high": 24187.3,
+      "or_low": 24125.05,
+      "entry_time": "2026-07-10 11:00:00+05:30",
+      "entry_price": 24187.1,
+      "initial_sl": 24166.2,
+      "risk_points": 20.9,
+      "total_lots": 38,
+      "legs": [
+        {
+          "exit_time": "2026-07-10 11:15:00+05:30",
+          "lots": 38,
+          "exit_price": 24166.2,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 917394.96
+    },
+    {
+      "date": "2026-07-15",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 24156.4,
+      "pdl": 24023.9,
+      "or_high": 24211.7,
+      "or_low": 24074.7,
+      "entry_time": "2026-07-15 13:15:00+05:30",
+      "entry_price": 24086.82,
+      "initial_sl": 24162.7,
+      "risk_points": 75.88,
+      "total_lots": 10,
+      "legs": [
+        {
+          "exit_time": "2026-07-15 15:00:00+05:30",
+          "lots": 10,
+          "exit_price": 24077.75,
+          "gain_R": 0.12,
+          "pnl_rupees": 1196.05,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 1196.05,
+      "account_capital": 918591.01
+    },
+    {
+      "date": "2026-07-17",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24186.0,
+      "pdl": 24050.45,
+      "or_high": 24211.4,
+      "or_low": 24100.9,
+      "entry_time": "2026-07-17 10:00:00+05:30",
+      "entry_price": 24212.32,
+      "initial_sl": 24193.2,
+      "risk_points": 19.12,
+      "total_lots": 41,
+      "legs": [
+        {
+          "exit_time": "2026-07-17 10:15:00+05:30",
+          "lots": 12,
+          "exit_price": 24269.7,
+          "gain_R": 3.0,
+          "pnl_rupees": 8780.49,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-07-17 14:15:00+05:30",
+          "lots": 12,
+          "exit_price": 24307.95,
+          "gain_R": 5.0,
+          "pnl_rupees": 14634.15,
+          "reason": "Target 2 (+5R) Hit"
+        },
+        {
+          "exit_time": "2026-07-17 14:15:00+05:30",
+          "lots": 8,
+          "exit_price": 24365.32,
+          "gain_R": 8.0,
+          "pnl_rupees": 15609.76,
+          "reason": "Target 3 (+8R) Hit"
+        },
+        {
+          "exit_time": "2026-07-17 14:30:00+05:30",
+          "lots": 9,
+          "exit_price": 24307.95,
+          "gain_R": 5.0,
+          "pnl_rupees": 10975.61,
+          "reason": "Trailing SL Hit (5.0R)"
+        }
+      ],
+      "total_pnl": 50000.01,
+      "account_capital": 968591.02
+    },
+    {
+      "date": "2026-07-22",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24262.2,
+      "pdl": 24135.9,
+      "or_high": 24164.65,
+      "or_low": 24047.15,
+      "entry_time": "2026-07-22 10:00:00+05:30",
+      "entry_price": 24037.22,
+      "initial_sl": 24058.05,
+      "risk_points": 20.83,
+      "total_lots": 38,
+      "legs": [
+        {
+          "exit_time": "2026-07-22 10:15:00+05:30",
+          "lots": 11,
+          "exit_price": 23974.75,
+          "gain_R": 3.0,
+          "pnl_rupees": 8684.21,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-07-22 11:15:00+05:30",
+          "lots": 27,
+          "exit_price": 24037.22,
+          "gain_R": 0.0,
+          "pnl_rupees": 0.0,
+          "reason": "Breakeven SL Hit"
+        }
+      ],
+      "total_pnl": 8684.21,
+      "account_capital": 977275.23
+    },
+    {
+      "date": "2026-07-23",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 24164.65,
+      "pdl": 23961.6,
+      "or_high": 23951.5,
+      "or_low": 23877.25,
+      "entry_time": "2026-07-23 10:15:00+05:30",
+      "entry_price": 23955.0,
+      "initial_sl": 23940.25,
+      "risk_points": 14.75,
+      "total_lots": 54,
+      "legs": [
+        {
+          "exit_time": "2026-07-23 11:30:00+05:30",
+          "lots": 54,
+          "exit_price": 23940.25,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 967275.23
+    },
+    {
+      "date": "2026-07-24",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 23990.7,
+      "pdl": 23807.35,
+      "or_high": 23762.75,
+      "or_low": 23650.3,
+      "entry_time": "2026-07-24 10:45:00+05:30",
+      "entry_price": 23648.18,
+      "initial_sl": 23664.75,
+      "risk_points": 16.58,
+      "total_lots": 48,
+      "legs": [
+        {
+          "exit_time": "2026-07-24 11:15:00+05:30",
+          "lots": 48,
+          "exit_price": 23664.75,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 957275.23
+    },
+    {
+      "date": "2026-07-29",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24041.0,
+      "pdl": 23954.7,
+      "or_high": 24196.2,
+      "or_low": 24141.75,
+      "entry_time": "2026-07-29 09:45:00+05:30",
+      "entry_price": 24196.62,
+      "initial_sl": 24175.6,
+      "risk_points": 21.03,
+      "total_lots": 38,
+      "legs": [
+        {
+          "exit_time": "2026-07-29 13:00:00+05:30",
+          "lots": 11,
+          "exit_price": 24259.7,
+          "gain_R": 3.0,
+          "pnl_rupees": 8684.21,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-07-29 15:00:00+05:30",
+          "lots": 27,
+          "exit_price": 24252.0,
+          "gain_R": 2.63,
+          "pnl_rupees": 18713.62,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 27397.83,
+      "account_capital": 984673.06
+    },
+    {
+      "date": "2026-08-03",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24429.4,
+      "pdl": 24299.7,
+      "or_high": 24568.0,
+      "or_low": 24515.5,
+      "entry_time": "2026-08-03 10:30:00+05:30",
+      "entry_price": 24570.38,
+      "initial_sl": 24559.05,
+      "risk_points": 11.33,
+      "total_lots": 70,
+      "legs": [
+        {
+          "exit_time": "2026-08-03 11:45:00+05:30",
+          "lots": 21,
+          "exit_price": 24604.35,
+          "gain_R": 3.0,
+          "pnl_rupees": 9000.0,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-08-03 12:45:00+05:30",
+          "lots": 49,
+          "exit_price": 24570.38,
+          "gain_R": 0.0,
+          "pnl_rupees": 0.0,
+          "reason": "Breakeven SL Hit"
+        }
+      ],
+      "total_pnl": 9000.0,
+      "account_capital": 993673.06
+    },
+    {
+      "date": "2026-08-05",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 24653.0,
+      "pdl": 24428.2,
+      "or_high": 24662.75,
+      "or_low": 24611.45,
+      "entry_time": "2026-08-05 10:00:00+05:30",
+      "entry_price": 24606.7,
+      "initial_sl": 24631.7,
+      "risk_points": 25.0,
+      "total_lots": 32,
+      "legs": [
+        {
+          "exit_time": "2026-08-05 10:45:00+05:30",
+          "lots": 32,
+          "exit_price": 24631.7,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 983673.06
+    },
+    {
+      "date": "2026-08-11",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24620.55,
+      "pdl": 24511.3,
+      "or_high": 24574.7,
+      "or_low": 24487.4,
+      "entry_time": "2026-08-11 09:45:00+05:30",
+      "entry_price": 24483.0,
+      "initial_sl": 24497.6,
+      "risk_points": 14.6,
+      "total_lots": 54,
+      "legs": [
+        {
+          "exit_time": "2026-08-11 11:15:00+05:30",
+          "lots": 16,
+          "exit_price": 24439.2,
+          "gain_R": 3.0,
+          "pnl_rupees": 8888.89,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-08-11 15:00:00+05:30",
+          "lots": 38,
+          "exit_price": 24450.0,
+          "gain_R": 2.26,
+          "pnl_rupees": 15905.63,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 24794.52,
+      "account_capital": 1008467.58
+    },
+    {
+      "date": "2026-08-17",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24405.2,
+      "pdl": 24298.35,
+      "or_high": 24357.6,
+      "or_low": 24283.05,
+      "entry_time": "2026-08-17 12:15:00+05:30",
+      "entry_price": 24286.52,
+      "initial_sl": 24295.65,
+      "risk_points": 9.12,
+      "total_lots": 87,
+      "legs": [
+        {
+          "exit_time": "2026-08-17 12:30:00+05:30",
+          "lots": 87,
+          "exit_price": 24295.65,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 998467.58
+    },
+    {
+      "date": "2026-08-18",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24359.9,
+      "pdl": 24226.95,
+      "or_high": 24269.5,
+      "or_low": 24214.6,
+      "entry_time": "2026-08-18 11:00:00+05:30",
+      "entry_price": 24202.02,
+      "initial_sl": 24216.4,
+      "risk_points": 14.38,
+      "total_lots": 55,
+      "legs": [
+        {
+          "exit_time": "2026-08-18 12:00:00+05:30",
+          "lots": 55,
+          "exit_price": 24216.4,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 988467.58
+    },
+    {
+      "date": "2026-08-20",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 24166.95,
+      "pdl": 24026.1,
+      "or_high": 24225.2,
+      "or_low": 24185.1,
+      "entry_time": "2026-08-20 13:00:00+05:30",
+      "entry_price": 24240.0,
+      "initial_sl": 24216.05,
+      "risk_points": 23.95,
+      "total_lots": 33,
+      "legs": [
+        {
+          "exit_time": "2026-08-20 15:00:00+05:30",
+          "lots": 33,
+          "exit_price": 24212.35,
+          "gain_R": -1.15,
+          "pnl_rupees": -11544.89,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": -11544.89,
+      "account_capital": 976922.69
+    },
+    {
+      "date": "2026-08-24",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 24282.0,
+      "pdl": 24206.95,
+      "or_high": 24312.85,
+      "or_low": 24276.75,
+      "entry_time": "2026-08-24 10:00:00+05:30",
+      "entry_price": 24276.22,
+      "initial_sl": 24285.15,
+      "risk_points": 8.93,
+      "total_lots": 89,
+      "legs": [
+        {
+          "exit_time": "2026-08-24 10:30:00+05:30",
+          "lots": 89,
+          "exit_price": 24285.15,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 966922.69
+    },
+    {
+      "date": "2026-08-25",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24312.85,
+      "pdl": 24144.45,
+      "or_high": 24198.1,
+      "or_low": 24129.15,
+      "entry_time": "2026-08-25 10:30:00+05:30",
+      "entry_price": 24129.12,
+      "initial_sl": 24142.7,
+      "risk_points": 13.58,
+      "total_lots": 58,
+      "legs": [
+        {
+          "exit_time": "2026-08-25 10:45:00+05:30",
+          "lots": 58,
+          "exit_price": 24142.7,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 956922.69
+    },
+    {
+      "date": "2026-09-02",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 24142.85,
+      "pdl": 23952.6,
+      "or_high": 23879.4,
+      "or_low": 23788.05,
+      "entry_time": "2026-09-02 10:30:00+05:30",
+      "entry_price": 23863.92,
+      "initial_sl": 23844.75,
+      "risk_points": 19.17,
+      "total_lots": 41,
+      "legs": [
+        {
+          "exit_time": "2026-09-02 10:45:00+05:30",
+          "lots": 41,
+          "exit_price": 23844.75,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 946922.69
+    },
+    {
+      "date": "2026-09-07",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 24004.85,
+      "pdl": 23896.0,
+      "or_high": 23888.8,
+      "or_low": 23819.15,
+      "entry_time": "2026-09-07 10:00:00+05:30",
+      "entry_price": 23826.07,
+      "initial_sl": 23841.8,
+      "risk_points": 15.73,
+      "total_lots": 50,
+      "legs": [
+        {
+          "exit_time": "2026-09-07 11:00:00+05:30",
+          "lots": 15,
+          "exit_price": 23778.9,
+          "gain_R": 3.0,
+          "pnl_rupees": 9000.0,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-09-07 12:45:00+05:30",
+          "lots": 15,
+          "exit_price": 23747.45,
+          "gain_R": 5.0,
+          "pnl_rupees": 15000.0,
+          "reason": "Target 2 (+5R) Hit"
+        },
+        {
+          "exit_time": "2026-09-07 13:45:00+05:30",
+          "lots": 20,
+          "exit_price": 23778.9,
+          "gain_R": 3.0,
+          "pnl_rupees": 12000.0,
+          "reason": "Trailing SL Hit (3.0R)"
+        }
+      ],
+      "total_pnl": 36000.0,
+      "account_capital": 982922.69
+    },
+    {
+      "date": "2026-09-09",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 23755.6,
+      "pdl": 23623.25,
+      "or_high": 23531.8,
+      "or_low": 23478.95,
+      "entry_time": "2026-09-09 10:30:00+05:30",
+      "entry_price": 23516.85,
+      "initial_sl": 23484.7,
+      "risk_points": 32.15,
+      "total_lots": 24,
+      "legs": [
+        {
+          "exit_time": "2026-09-09 12:00:00+05:30",
+          "lots": 24,
+          "exit_price": 23484.7,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 972922.69
+    },
+    {
+      "date": "2026-09-11",
+      "type": "CE",
+      "filter": "Broke PDL",
+      "pdh": 23489.7,
+      "pdl": 23380.65,
+      "or_high": 23270.9,
+      "or_low": 23232.25,
+      "entry_time": "2026-09-11 10:15:00+05:30",
+      "entry_price": 23278.32,
+      "initial_sl": 23257.3,
+      "risk_points": 21.02,
+      "total_lots": 38,
+      "legs": [
+        {
+          "exit_time": "2026-09-11 11:15:00+05:30",
+          "lots": 11,
+          "exit_price": 23341.4,
+          "gain_R": 3.0,
+          "pnl_rupees": 8684.21,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-09-11 13:45:00+05:30",
+          "lots": 11,
+          "exit_price": 23383.45,
+          "gain_R": 5.0,
+          "pnl_rupees": 14473.68,
+          "reason": "Target 2 (+5R) Hit"
+        },
+        {
+          "exit_time": "2026-09-11 14:00:00+05:30",
+          "lots": 8,
+          "exit_price": 23446.52,
+          "gain_R": 8.0,
+          "pnl_rupees": 16842.11,
+          "reason": "Target 3 (+8R) Hit"
+        },
+        {
+          "exit_time": "2026-09-11 15:00:00+05:30",
+          "lots": 8,
+          "exit_price": 23435.3,
+          "gain_R": 7.47,
+          "pnl_rupees": 15718.13,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 55718.13,
+      "account_capital": 1028640.82
+    },
+    {
+      "date": "2026-09-22",
+      "type": "PE",
+      "filter": "Broke PDH",
+      "pdh": 23466.65,
+      "pdl": 23317.15,
+      "or_high": 23489.0,
+      "or_low": 23425.8,
+      "entry_time": "2026-09-22 11:15:00+05:30",
+      "entry_price": 23403.98,
+      "initial_sl": 23439.75,
+      "risk_points": 35.78,
+      "total_lots": 22,
+      "legs": [
+        {
+          "exit_time": "2026-09-22 14:00:00+05:30",
+          "lots": 7,
+          "exit_price": 23296.65,
+          "gain_R": 3.0,
+          "pnl_rupees": 9545.45,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-09-22 15:00:00+05:30",
+          "lots": 15,
+          "exit_price": 23349.55,
+          "gain_R": 1.52,
+          "pnl_rupees": 10372.59,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 19918.04,
+      "account_capital": 1048558.86
+    },
+    {
+      "date": "2026-09-28",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 23162.55,
+      "pdl": 23021.1,
+      "or_high": 23079.75,
+      "or_low": 22905.25,
+      "entry_time": "2026-09-28 09:45:00+05:30",
+      "entry_price": 22883.78,
+      "initial_sl": 22912.1,
+      "risk_points": 28.32,
+      "total_lots": 28,
+      "legs": [
+        {
+          "exit_time": "2026-09-28 14:15:00+05:30",
+          "lots": 8,
+          "exit_price": 22798.8,
+          "gain_R": 3.0,
+          "pnl_rupees": 8571.43,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-09-28 15:00:00+05:30",
+          "lots": 20,
+          "exit_price": 22788.25,
+          "gain_R": 3.37,
+          "pnl_rupees": 24089.02,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 32660.45,
+      "account_capital": 1081219.31
+    },
+    {
+      "date": "2026-09-29",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 23079.75,
+      "pdl": 22762.25,
+      "or_high": 22752.45,
+      "or_low": 22624.7,
+      "entry_time": "2026-09-29 09:45:00+05:30",
+      "entry_price": 22603.88,
+      "initial_sl": 22638.1,
+      "risk_points": 34.22,
+      "total_lots": 23,
+      "legs": [
+        {
+          "exit_time": "2026-09-29 11:00:00+05:30",
+          "lots": 23,
+          "exit_price": 22638.1,
+          "gain_R": -1.0,
+          "pnl_rupees": -10000.0,
+          "reason": "Stop Loss Hit"
+        }
+      ],
+      "total_pnl": -10000.0,
+      "account_capital": 1071219.31
+    },
+    {
+      "date": "2026-10-06",
+      "type": "CE",
+      "filter": "Broke PDH",
+      "pdh": 22621.8,
+      "pdl": 22397.5,
+      "or_high": 22626.65,
+      "or_low": 22561.8,
+      "entry_time": "2026-10-06 10:00:00+05:30",
+      "entry_price": 22639.55,
+      "initial_sl": 22611.75,
+      "risk_points": 27.8,
+      "total_lots": 28,
+      "legs": [
+        {
+          "exit_time": "2026-10-06 12:30:00+05:30",
+          "lots": 8,
+          "exit_price": 22722.95,
+          "gain_R": 3.0,
+          "pnl_rupees": 8571.43,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-10-06 15:00:00+05:30",
+          "lots": 20,
+          "exit_price": 22717.4,
+          "gain_R": 2.8,
+          "pnl_rupees": 20002.57,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 28574.0,
+      "account_capital": 1099793.31
+    },
+    {
+      "date": "2026-10-08",
+      "type": "PE",
+      "filter": "Broke PDL",
+      "pdh": 22717.25,
+      "pdl": 22546.55,
+      "or_high": 22595.0,
+      "or_low": 22475.85,
+      "entry_time": "2026-10-08 10:00:00+05:30",
+      "entry_price": 22492.75,
+      "initial_sl": 22525.55,
+      "risk_points": 32.8,
+      "total_lots": 24,
+      "legs": [
+        {
+          "exit_time": "2026-10-08 11:15:00+05:30",
+          "lots": 7,
+          "exit_price": 22394.35,
+          "gain_R": 3.0,
+          "pnl_rupees": 8750.0,
+          "reason": "Target 1 (+3R) Hit"
+        },
+        {
+          "exit_time": "2026-10-08 12:15:00+05:30",
+          "lots": 7,
+          "exit_price": 22328.75,
+          "gain_R": 5.0,
+          "pnl_rupees": 14583.33,
+          "reason": "Target 2 (+5R) Hit"
+        },
+        {
+          "exit_time": "2026-10-08 13:30:00+05:30",
+          "lots": 5,
+          "exit_price": 22230.35,
+          "gain_R": 8.0,
+          "pnl_rupees": 16666.67,
+          "reason": "Target 3 (+8R) Hit"
+        },
+        {
+          "exit_time": "2026-10-08 15:00:00+05:30",
+          "lots": 5,
+          "exit_price": 22215.8,
+          "gain_R": 8.44,
+          "pnl_rupees": 17590.83,
+          "reason": "Hard Exit (2:55 PM)"
+        }
+      ],
+      "total_pnl": 57590.83,
+      "account_capital": 1157384.14
+    }
+  ]
+}
