@@ -48,7 +48,7 @@ class SaveTradeRequest(BaseModel):
 
 
 class ResetAccountRequest(BaseModel):
-    starting_balance: float = 500000.0
+    starting_balance: float = 1000000.0
 
 
 @router.get("/config")

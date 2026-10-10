@@ -456,8 +456,8 @@ class SimulatorService:
             except Exception:
                 pass
         default_state = {
-            "starting_balance": 500000.0,
-            "current_balance": 500000.0,
+            "starting_balance": 1000000.0,
+            "current_balance": 1000000.0,
             "all_time_pnl": 0.0,
             "xp": 0,
             "rank": "Floor Trader",

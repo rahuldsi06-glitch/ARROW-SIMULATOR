@@ -166,6 +166,44 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(data2["new_balance"], 102500.0)
         self.assertGreater(data2["xp_gained"], 0)
 
+    def test_capital_persists_across_new_sessions_and_days(self):
+        # 1. Reset account explicitly
+        self.client.post("/api/game/reset-account", json={"starting_balance": 1000000.0})
+
+        # 2. Complete trade on Day 1 (+15,000)
+        self.client.post("/api/game/trade", json={
+            "trade_id": "DAY1-T1",
+            "symbol": "NIFTY",
+            "strike": 23000.0,
+            "option_type": "CE",
+            "expiry_type": "weekly",
+            "lot_size": 25,
+            "lots": 4,
+            "quantity": 100,
+            "entry_bar": 2,
+            "exit_bar": 10,
+            "entry_time": "09:25",
+            "exit_time": "10:05",
+            "entry_price": 100.0,
+            "exit_price": 250.0,
+            "target_price": 250.0,
+            "stop_loss_price": 85.0,
+            "pnl": 15000.0,
+            "pnl_pct": 150.0,
+            "exit_reason": "TARGET_HIT"
+        })
+
+        # 3. Create Day 2 session (e.g. stock)
+        s_res = self.client.post("/api/game/session", json={"mode": "stock", "symbol": "RELIANCE"})
+        self.assertEqual(s_res.status_code, 200)
+
+        # 4. Check config/account - capital carried over, starting capital preserved
+        cfg = self.client.get("/api/game/config").json()
+        self.assertEqual(cfg["state"]["starting_balance"], 1000000.0)
+        self.assertEqual(cfg["state"]["current_balance"], 1015000.0)
+        self.assertEqual(cfg["state"]["all_time_pnl"], 15000.0)
+
 
 if __name__ == "__main__":
     unittest.main()
+

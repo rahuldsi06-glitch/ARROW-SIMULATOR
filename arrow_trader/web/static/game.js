@@ -258,6 +258,7 @@
       // Account state (Default 10 Lakhs Pro Account)
       this.startingCapital = 1000000.0;
       this.currentCapital = 1000000.0;
+      this.dayStartCapital = 1000000.0;
       this.dayPnL = 0.0;
       this.totalTrades = 0;
       this.wins = 0;
@@ -463,12 +464,18 @@
         const saved = localStorage.getItem("arrow_game_state");
         if (saved) {
           const s = JSON.parse(saved);
-          if (s.startingCapital && s.startingCapital !== 500000) {
-            this.startingCapital = s.startingCapital;
-            this.currentCapital = s.currentCapital || s.startingCapital;
+          if (s.startingCapital) {
+            this.startingCapital = parseFloat(s.startingCapital) || 1000000.0;
+          }
+          if (typeof s.currentCapital === "number") {
+            this.currentCapital = parseFloat(s.currentCapital);
           } else {
-            this.startingCapital = 1000000.0;
-            this.currentCapital = 1000000.0;
+            this.currentCapital = this.startingCapital;
+          }
+          if (typeof s.dayStartCapital === "number") {
+            this.dayStartCapital = parseFloat(s.dayStartCapital);
+          } else {
+            this.dayStartCapital = this.currentCapital;
           }
           if (s.xp) this.xp = s.xp;
           if (s.rank) this.rank = s.rank;
@@ -478,6 +485,7 @@
           }
         }
       } catch (e) {}
+      this.dayStartCapital = this.currentCapital;
       this.updateHUD();
     }
 
@@ -486,6 +494,7 @@
         const state = {
           startingCapital: this.startingCapital,
           currentCapital: this.currentCapital,
+          dayStartCapital: this.dayStartCapital,
           xp: this.xp,
           rank: this.rank,
           audioEnabled: this.audio.enabled
@@ -500,8 +509,15 @@
         if (res.ok) {
           this.config = await res.json();
           if (this.config.state) {
-            this.xp = this.config.state.xp || this.xp;
-            this.rank = this.config.state.rank || this.rank;
+            const st = this.config.state;
+            const hasLocal = localStorage.getItem("arrow_game_state");
+            if (!hasLocal) {
+              if (st.starting_balance) this.startingCapital = st.starting_balance;
+              if (st.current_balance) this.currentCapital = st.current_balance;
+              this.dayStartCapital = this.currentCapital;
+            }
+            if (st.xp) this.xp = st.xp || this.xp;
+            if (st.rank) this.rank = st.rank || this.rank;
             this.updateHUD();
           }
         }
@@ -646,11 +662,12 @@
       this.cancelChartAction();
       this.customSLPrice = null;
       this.customTargetPrice = null;
+      this.dayStartCapital = this.currentCapital;
       this.dayPnL = 0.0;
-      this.currentCapital = this.startingCapital;
       this.tradeJournal = [];
       this.renderJournal();
       this.updateHUD();
+      this.saveState();
 
       // Clear all chart series immediately to eliminate old price ranges
       if (this.candleSeries) this.candleSeries.setData([]);
@@ -988,11 +1005,12 @@
       this.dom.tradeChartOverlay.classList.add("hidden");
       this.clearPriceLines();
       this.clearPreviewLines();
+      this.currentCapital = (typeof this.dayStartCapital === "number") ? this.dayStartCapital : this.currentCapital;
       this.dayPnL = 0;
-      this.currentCapital = this.startingCapital;
       this.tradeJournal = [];
       this.renderJournal();
       this.updateHUD();
+      this.saveState();
       this.resetReplayToStart();
     }
 
@@ -1133,7 +1151,7 @@
       }
 
       // 3. Risk-Based Position Sizing (Lots Calculator)
-      const accountEquity = Math.max(this.startingCapital, this.currentCapital + (this.activePosition ? (this.activePosition.currentPrice * this.activePosition.qty) : 0));
+      const accountEquity = Math.max(10000, this.currentCapital + (this.activePosition ? (this.activePosition.currentPrice * this.activePosition.qty) : 0));
       const maxRiskRupees = Math.round(accountEquity * (this.selectedRiskPct / 100));
 
       const lossPerShare = Math.max(0.5, Math.round((opt.price - slPrice) * 100) / 100);
@@ -1255,6 +1273,7 @@
       this.audio.playOrderFilled();
       this.drawPositionChartLines();
       this.updateHUD();
+      this.saveState();
 
       // Add Entry Marker on Chart
       this.chartMarkers.push({
@@ -1845,12 +1864,13 @@
       const grossProfit = this.tradeJournal.filter(t => t.pnl > 0).reduce((acc, t) => acc + t.pnl, 0);
       const grossLoss = Math.abs(this.tradeJournal.filter(t => t.pnl < 0).reduce((acc, t) => acc + t.pnl, 0));
       const pf = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? "∞" : "0.0");
-      const roi = this.startingCapital > 0 ? ((this.dayPnL / this.startingCapital) * 100).toFixed(2) : "0.0";
+      const baseCap = (typeof this.dayStartCapital === "number" && this.dayStartCapital > 0) ? this.dayStartCapital : (this.startingCapital || 1000000);
+      const roi = baseCap > 0 ? ((this.dayPnL / baseCap) * 100).toFixed(2) : "0.0";
 
       const sign = this.dayPnL >= 0 ? "+" : "";
       document.getElementById("eod-pnl-hero").innerText = `${sign}₹ ${this.dayPnL.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
       document.getElementById("eod-pnl-hero").className = `eod-pnl-val font-mono ${this.dayPnL >= 0 ? "positive" : "negative"}`;
-      document.getElementById("eod-roi-hero").innerText = `${sign}${roi}% on Starting Capital`;
+      document.getElementById("eod-roi-hero").innerText = `${sign}${roi}% Day ROI`;
 
       document.getElementById("eod-trades").innerText = this.tradeJournal.length;
       document.getElementById("eod-winrate").innerText = `${winRate}%`;
@@ -1864,6 +1884,7 @@
       else tier = "Risk Management Apprentice ⭐";
       document.getElementById("eod-tier-name").innerText = tier;
 
+      this.saveState();
       this.dom.modalEod.classList.remove("hidden");
     }
 
@@ -2216,9 +2237,10 @@
       });
 
       this.dom.btnSaveCapital.addEventListener("click", async () => {
-        const val = parseFloat(this.dom.inputCustomCapital.value) || 500000;
+        const val = parseFloat(this.dom.inputCustomCapital.value) || 1000000;
         this.startingCapital = val;
         this.currentCapital = val;
+        this.dayStartCapital = val;
         this.dayPnL = 0;
         this.totalTrades = 0;
         this.wins = 0;
