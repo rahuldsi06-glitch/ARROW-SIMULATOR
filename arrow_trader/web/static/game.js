@@ -361,6 +361,7 @@
       this.dom.tradeChartOverlay = document.getElementById("trade-chart-overlay");
 
       // Chart Drawing & Interactive Placing Tools
+      this.dom.btnFitChart = document.getElementById("btn-fit-chart");
       this.dom.btnDrawFib = document.getElementById("btn-draw-fib");
       this.dom.btnAutoFib = document.getElementById("btn-auto-fib");
       this.dom.btnClearFib = document.getElementById("btn-clear-fib");
@@ -535,10 +536,27 @@
           borderColor: "rgba(255, 255, 255, 0.08)",
           timeVisible: true,
           secondsVisible: false,
+          shiftVisibleRangeOnNewBar: true,
+          rightOffset: 12,
+          barSpacing: 10,
+          minBarSpacing: 3,
         },
         rightPriceScale: {
           borderColor: "rgba(255, 255, 255, 0.08)",
-          scaleMargins: { top: 0.1, bottom: 0.25 },
+          scaleMargins: { top: 0.12, bottom: 0.28 },
+          autoScale: true,
+        },
+        handleScale: {
+          axisPressedMouseMove: { time: true, price: true },
+          axisDoubleClickReset: { time: true, price: true },
+          mouseWheel: true,
+          pinch: true,
+        },
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+          horzTouchDrag: true,
+          vertTouchDrag: true,
         },
       });
 
@@ -550,6 +568,11 @@
         borderDownColor: "#f43f5e",
         wickUpColor: "#10b981",
         wickDownColor: "#f43f5e",
+        priceFormat: {
+          type: "price",
+          precision: 2,
+          minMove: 0.05,
+        },
       });
 
       // Volume Series
@@ -585,23 +608,23 @@
         priceLineVisible: false,
       });
 
-      // Auto resize
-      window.addEventListener("resize", () => {
+      // Auto resize handling (Window + ResizeObserver)
+      const updateChartDimensions = () => {
         if (this.chart && this.dom.chartWrapper) {
-          this.chart.applyOptions({
-            width: this.dom.chartWrapper.clientWidth,
-            height: this.dom.chartWrapper.clientHeight,
-          });
+          const w = this.dom.chartWrapper.clientWidth;
+          const h = this.dom.chartWrapper.clientHeight;
+          if (w > 50 && h > 50) {
+            this.chart.applyOptions({ width: w, height: h });
+          }
         }
-      });
-      setTimeout(() => {
-        if (this.chart && this.dom.chartWrapper) {
-          this.chart.applyOptions({
-            width: this.dom.chartWrapper.clientWidth,
-            height: this.dom.chartWrapper.clientHeight,
-          });
-        }
-      }, 100);
+      };
+
+      window.addEventListener("resize", updateChartDimensions);
+      if (window.ResizeObserver && this.dom.chartWrapper) {
+        const ro = new ResizeObserver(() => updateChartDimensions());
+        ro.observe(this.dom.chartWrapper);
+      }
+      setTimeout(updateChartDimensions, 100);
 
       // Interactive Chart Click Handler for Fibonacci & SL/Target placement
       this.chart.subscribeClick((param) => {
@@ -628,6 +651,13 @@
       this.tradeJournal = [];
       this.renderJournal();
       this.updateHUD();
+
+      // Clear all chart series immediately to eliminate old price ranges
+      if (this.candleSeries) this.candleSeries.setData([]);
+      if (this.volumeSeries) this.volumeSeries.setData([]);
+      if (this.ema9Series) this.ema9Series.setData([]);
+      if (this.ema21Series) this.ema21Series.setData([]);
+      if (this.vwapSeries) this.vwapSeries.setData([]);
 
       const sym = symbol || this.currentSymbol;
 
@@ -729,13 +759,74 @@
       this.dom.timelineSlider.max = Math.max(0, this.session.total_bars - 1);
     }
 
+    resetChartViewport(forceFullDay = true) {
+      if (!this.chart || !this.candleSeries) return;
+
+      const apply = () => {
+        try {
+          // 1. Force Price Scale to autoScale mode so candles fit vertically
+          this.chart.priceScale("right").applyOptions({
+            autoScale: true,
+            scaleMargins: { top: 0.12, bottom: 0.28 },
+          });
+
+          if (this.candleSeries.priceScale) {
+            this.candleSeries.priceScale().applyOptions({
+              autoScale: true,
+            });
+          }
+
+          // 2. Set Price Format precision based on instrument
+          const tickSize = this.session?.tick_size || 0.05;
+          this.candleSeries.applyOptions({
+            priceFormat: {
+              type: "price",
+              precision: 2,
+              minMove: tickSize,
+            },
+          });
+
+          // 3. Reset Time Scale internal zoom & pan
+          this.chart.timeScale().resetTimeScale();
+
+          // 4. Set optimal Visible Logical Range
+          const totalBars = this.session?.total_bars || 75;
+          if (forceFullDay || this.currentBarIndex <= 5) {
+            this.chart.timeScale().setVisibleLogicalRange({
+              from: -3,
+              to: Math.min(85, Math.max(35, totalBars + 5)),
+            });
+          } else {
+            const fromBar = Math.max(-3, this.currentBarIndex - 45);
+            const toBar = this.currentBarIndex + 15;
+            this.chart.timeScale().setVisibleLogicalRange({
+              from: fromBar,
+              to: toBar,
+            });
+          }
+        } catch (err) {
+          console.warn("Chart viewport reset warning:", err);
+        }
+      };
+
+      apply();
+      requestAnimationFrame(apply);
+    }
+
     resetReplayToStart() {
       this.currentBarIndex = 0;
       this.dom.timelineSlider.value = 0;
       this.chartMarkers = [];
 
-      // Render only the opening 09:15 bar
+      this.clearPriceLines();
+      this.clearPreviewLines();
+      this.clearFib();
+
+      // Render the opening 09:15 bar
       this.renderCurrentChartState();
+
+      // Force viewport reset to perfectly frame the new day and instrument
+      this.resetChartViewport(true);
     }
 
     renderCurrentChartState() {
@@ -762,18 +853,50 @@
       this.candleSeries.setData(formattedBars);
       this.volumeSeries.setData(formattedVols);
 
-      // Overlays
-      if (this.dom.toggleEma9.classList.contains("active")) {
+      // Overlays: only set data for active indicators, explicitly clear inactive ones
+      if (this.dom.toggleEma9 && this.dom.toggleEma9.classList.contains("active")) {
         this.ema9Series.setData(this.indicatorData.ema9.slice(0, this.currentBarIndex + 1));
+      } else if (this.ema9Series) {
+        this.ema9Series.setData([]);
       }
-      if (this.dom.toggleEma21.classList.contains("active")) {
+
+      if (this.dom.toggleEma21 && this.dom.toggleEma21.classList.contains("active")) {
         this.ema21Series.setData(this.indicatorData.ema21.slice(0, this.currentBarIndex + 1));
+      } else if (this.ema21Series) {
+        this.ema21Series.setData([]);
       }
-      if (this.dom.toggleVwap.classList.contains("active")) {
+
+      if (this.dom.toggleVwap && this.dom.toggleVwap.classList.contains("active")) {
         this.vwapSeries.setData(this.indicatorData.vwap.slice(0, this.currentBarIndex + 1));
+      } else if (this.vwapSeries) {
+        this.vwapSeries.setData([]);
       }
 
       this.candleSeries.setMarkers(this.chartMarkers);
+
+      // Auto-tracking: keep current candle visible on chart as replay advances or jumps
+      if (this.currentBarIndex > 0) {
+        try {
+          const logicalRange = this.chart.timeScale().getVisibleLogicalRange();
+          if (logicalRange) {
+            const span = Math.max(25, logicalRange.to - logicalRange.from);
+            if (this.currentBarIndex >= logicalRange.to - 2) {
+              this.chart.timeScale().setVisibleLogicalRange({
+                from: this.currentBarIndex - span + 8,
+                to: this.currentBarIndex + 8,
+              });
+            } else if (this.currentBarIndex < logicalRange.from) {
+              this.chart.timeScale().setVisibleLogicalRange({
+                from: Math.max(-3, this.currentBarIndex - 3),
+                to: Math.max(-3, this.currentBarIndex - 3) + span,
+              });
+            }
+          }
+        } catch (e) {}
+      } else {
+        // At opening bar (Bar 0), ensure chart view is auto-fitted
+        this.resetChartViewport(true);
+      }
 
       // Update Tickers & OHLC
       const dayOpen = this.session.candles[0].open;
@@ -1866,6 +1989,12 @@
       });
 
       // Chart Drawing & Interactive Placing Tools
+      if (this.dom.btnFitChart) {
+        this.dom.btnFitChart.addEventListener("click", () => {
+          this.resetChartViewport(false);
+          this.audio.playClick();
+        });
+      }
       this.dom.btnDrawFib.addEventListener("click", () => this.startFibDrawing());
       this.dom.btnAutoFib.addEventListener("click", () => this.autoSwingFib());
       this.dom.btnClearFib.addEventListener("click", () => {

@@ -92,13 +92,13 @@ TOOLS = [
                 },
                 "strategy": {
                     "type": "string",
-                    "enum": ["sma_crossover", "ema_crossover", "rsi", "bollinger_bands", "breakout", "orb", "orb_pdh_pdl"],
+                    "enum": ["sma_crossover", "ema_crossover", "rsi", "bollinger_bands", "breakout", "orb", "orb_pdh_pdl", "orb_5min"],
                     "default": "sma_crossover",
                     "description": "Strategy type to simulate."
                 },
                 "parameters": {
                     "type": "object",
-                    "description": "Strategy parameters. e.g. for orb_pdh_pdl: {'risk_pct': 0.01, 'lot_size': 25, 'option_delta': 0.5}; for orb: {'range_bars': 1, 'target_multiplier': 1.5, 'direction': 'both'}; for sma_crossover: {'fast_period': 5, 'slow_period': 15}."
+                    "description": "Strategy parameters. e.g. for orb_5min: {'target_ratio': 0.5, 'sl_ratio': 1.0}; for orb_pdh_pdl: {'risk_pct': 0.01, 'lot_size': 25}; for orb: {'range_bars': 1, 'target_multiplier': 1.5}."
                 },
                 "interval": {
                     "type": "string",
@@ -398,10 +398,13 @@ def handle_backtest_strategy(args: Dict[str, Any]) -> Dict[str, Any]:
     elif strategy_name.lower() in ("orb_pdh_pdl", "orb_filter", "orb_advanced"):
         interval = args.get("interval", "15min")
         days_back = int(args.get("days_back", 120))
+    elif strategy_name.lower() in ("orb_5min", "orb_5m", "orb_5min_2to1"):
+        interval = args.get("interval", "5min")
+        days_back = int(args.get("days_back", 180))
     else:
         interval = args.get("interval", "day")
         days_back = int(args.get("days_back", 60))
-    initial_capital = float(args.get("initial_capital", 1000000.0 if "pdh" in strategy_name.lower() else 100000.0))
+    initial_capital = float(args.get("initial_capital", 1000000.0 if ("pdh" in strategy_name.lower() or "5min" in strategy_name.lower()) else 100000.0))
 
     # Resolve token
     try:

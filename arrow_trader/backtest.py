@@ -109,6 +109,9 @@ class BacktestEngine:
         if strat in ("orb_pdh_pdl", "orb_filter", "orb_advanced"):
             return cls._run_orb_pdh_pdl_backtest(df, params, initial_capital)
 
+        if strat in ("orb_5min", "orb_5m", "orb_5min_2to1"):
+            return cls._run_orb_5min_2to1_backtest(df, params, initial_capital)
+
         signals = pd.Series(0, index=df.index)  # 1: Long, -1: Flat/Exit
 
         if strat in ("sma_crossover", "ema_crossover"):
@@ -978,6 +981,248 @@ class BacktestEngine:
                 "avg_trade_pnl": round(net_profit / total_trades, 2) if total_trades > 0 else 0.0,
                 "largest_win": round(max([t["total_pnl"] for t in trades]), 2) if trades else 0.0,
                 "largest_loss": round(min([t["total_pnl"] for t in trades]), 2) if trades else 0.0,
+            },
+            "recent_trades": trades,
+        }
+
+    @classmethod
+    def _run_orb_5min_2to1_backtest(
+        cls,
+        df: pd.DataFrame,
+        params: Optional[Dict[str, Any]] = None,
+        initial_capital: float = 1000000.0,
+    ) -> Dict[str, Any]:
+        """
+        Simple 5-minute Opening Range Breakout (ORB) on NIFTY:
+        - Opening range: First 5-minute candle (09:15-09:20).
+        - Breakout trigger: Price breaches OR_High (Long) or OR_Low (Short).
+        - Target: Half the size of that opening 5m candle (0.5 * Range).
+        - Stop Loss: Full size of the opening candle (1.0 * Range, opposite side).
+        - Risk to Reward: 2:1 (Risk 1.0R to make 0.5R).
+        - Evaluates: How many occasions reached 50% target vs SL vs EOD.
+        """
+        params = params or {}
+        target_ratio = float(params.get("target_ratio", 0.5))
+        sl_ratio = float(params.get("sl_ratio", 1.0))
+        lot_size = int(params.get("lot_size", 25))
+        fixed_risk = float(params.get("fixed_risk", 10000.0))
+
+        df = df.copy()
+        df["date"] = df["timestamp"].dt.date
+        unique_dates = sorted(df["date"].unique())
+
+        capital = initial_capital
+        trades = []
+        daily_records = []
+        equity_curve = [{"timestamp": str(df.iloc[0]["timestamp"]), "equity": capital}]
+
+        for date in unique_dates:
+            group = df[df["date"] == date].sort_values("timestamp").reset_index(drop=True)
+            if len(group) < 2:
+                continue
+
+            first_bar = group.iloc[0]
+            or_high = float(first_bar["high"])
+            or_low = float(first_bar["low"])
+            or_range = or_high - or_low
+
+            if or_range <= 0:
+                continue
+
+            traded_today = False
+            for i in range(1, len(group)):
+                bar = group.iloc[i]
+                ts = bar["timestamp"]
+                b_open = float(bar["open"])
+                b_high = float(bar["high"])
+                b_low = float(bar["low"])
+                b_close = float(bar["close"])
+
+                breached_high = b_high > or_high
+                breached_low = b_low < or_low
+
+                if not (breached_high or breached_low):
+                    continue
+
+                pos_type = None
+                if breached_high and not breached_low:
+                    pos_type = "LONG"
+                elif breached_low and not breached_high:
+                    pos_type = "SHORT"
+                else:
+                    if b_open >= or_high:
+                        pos_type = "LONG"
+                    elif b_open <= or_low:
+                        pos_type = "SHORT"
+                    else:
+                        pos_type = "LONG" if b_close >= b_open else "SHORT"
+
+                entry_price = or_high if pos_type == "LONG" else or_low
+                target_dist = or_range * target_ratio
+                sl_dist = or_range * sl_ratio
+
+                if pos_type == "LONG":
+                    target_price = entry_price + target_dist
+                    stop_loss_price = entry_price - sl_dist
+                else:
+                    target_price = entry_price - target_dist
+                    stop_loss_price = entry_price + sl_dist
+
+                lots = max(1, math.floor(fixed_risk / (sl_dist * lot_size))) if sl_dist > 0 else 1
+                qty = lots * lot_size
+
+                exit_price = None
+                exit_reason = None
+                exit_time = None
+
+                if pos_type == "LONG":
+                    hit_target = b_high >= target_price
+                    hit_sl = b_low <= stop_loss_price
+                    if hit_target and not hit_sl:
+                        exit_price = target_price
+                        exit_reason = "Target Hit (50% Range)"
+                        exit_time = ts
+                    elif hit_sl and not hit_target:
+                        exit_price = stop_loss_price
+                        exit_reason = "Stop Loss Hit (Full Candle)"
+                        exit_time = ts
+                    elif hit_target and hit_sl:
+                        exit_price = target_price
+                        exit_reason = "Target Hit (50% Range)"
+                        exit_time = ts
+                else:
+                    hit_target = b_low <= target_price
+                    hit_sl = b_high >= stop_loss_price
+                    if hit_target and not hit_sl:
+                        exit_price = target_price
+                        exit_reason = "Target Hit (50% Range)"
+                        exit_time = ts
+                    elif hit_sl and not hit_target:
+                        exit_price = stop_loss_price
+                        exit_reason = "Stop Loss Hit (Full Candle)"
+                        exit_time = ts
+                    elif hit_target and hit_sl:
+                        exit_price = target_price
+                        exit_reason = "Target Hit (50% Range)"
+                        exit_time = ts
+
+                if exit_price is None:
+                    for j in range(i + 1, len(group)):
+                        sub_bar = group.iloc[j]
+                        sub_ts = sub_bar["timestamp"]
+                        s_high = float(sub_bar["high"])
+                        s_low = float(sub_bar["low"])
+                        s_close = float(sub_bar["close"])
+
+                        is_last_bar = (j == len(group) - 1) or (sub_ts.hour == 15 and sub_ts.minute >= 15)
+
+                        if pos_type == "LONG":
+                            if s_high >= target_price:
+                                exit_price = target_price
+                                exit_reason = "Target Hit (50% Range)"
+                                exit_time = sub_ts
+                                break
+                            elif s_low <= stop_loss_price:
+                                exit_price = stop_loss_price
+                                exit_reason = "Stop Loss Hit (Full Candle)"
+                                exit_time = sub_ts
+                                break
+                            elif is_last_bar:
+                                exit_price = s_close
+                                exit_reason = "EOD Square-off"
+                                exit_time = sub_ts
+                                break
+                        else:
+                            if s_low <= target_price:
+                                exit_price = target_price
+                                exit_reason = "Target Hit (50% Range)"
+                                exit_time = sub_ts
+                                break
+                            elif s_high >= stop_loss_price:
+                                exit_price = stop_loss_price
+                                exit_reason = "Stop Loss Hit (Full Candle)"
+                                exit_time = sub_ts
+                                break
+                            elif is_last_bar:
+                                exit_price = s_close
+                                exit_reason = "EOD Square-off"
+                                exit_time = sub_ts
+                                break
+
+                if exit_price is None:
+                    last_bar = group.iloc[-1]
+                    exit_price = float(last_bar["close"])
+                    exit_reason = "EOD Square-off"
+                    exit_time = last_bar["timestamp"]
+
+                if pos_type == "LONG":
+                    points_pnl = exit_price - entry_price
+                else:
+                    points_pnl = entry_price - exit_price
+
+                pnl_rupees = points_pnl * qty
+                capital += pnl_rupees
+                traded_today = True
+
+                trades.append({
+                    "date": str(date),
+                    "type": pos_type,
+                    "or_high": round(or_high, 2),
+                    "or_low": round(or_low, 2),
+                    "or_range": round(or_range, 2),
+                    "entry_time": str(ts),
+                    "entry_price": round(entry_price, 2),
+                    "target_price": round(target_price, 2),
+                    "stop_loss_price": round(stop_loss_price, 2),
+                    "exit_time": str(exit_time),
+                    "exit_price": round(exit_price, 2),
+                    "exit_reason": exit_reason,
+                    "points_pnl": round(points_pnl, 2),
+                    "pnl_rupees": round(pnl_rupees, 2),
+                    "lots": lots,
+                    "account_capital": round(capital, 2),
+                })
+                equity_curve.append({"timestamp": str(date), "equity": round(capital, 2)})
+                break
+
+            if not traded_today:
+                daily_records.append({
+                    "date": str(date),
+                    "status": "NO_BREAKOUT",
+                    "or_range": round(or_range, 2),
+                })
+
+        target_hits = [t for t in trades if "Target Hit" in t["exit_reason"]]
+        sl_hits = [t for t in trades if "Stop Loss Hit" in t["exit_reason"]]
+        eod_exits = [t for t in trades if "EOD" in t["exit_reason"]]
+        total_trades = len(trades)
+        target_hit_rate = (len(target_hits) / total_trades * 100) if total_trades > 0 else 0.0
+
+        return {
+            "strategy": "5-Min ORB with 50% Target & Full Candle SL (2:1 Risk:Reward)",
+            "period": {
+                "start": str(unique_dates[0]),
+                "end": str(unique_dates[-1]),
+                "total_trading_days": len(unique_dates),
+                "days_traded": total_trades,
+                "days_no_breakout": len(daily_records),
+            },
+            "target_statistics": {
+                "total_trades": total_trades,
+                "target_hit_count": len(target_hits),
+                "target_hit_pct": round(target_hit_rate, 2),
+                "sl_hit_count": len(sl_hits),
+                "sl_hit_pct": round((len(sl_hits) / total_trades * 100), 2) if total_trades > 0 else 0.0,
+                "eod_exit_count": len(eod_exits),
+                "eod_exit_pct": round((len(eod_exits) / total_trades * 100), 2) if total_trades > 0 else 0.0,
+            },
+            "performance": {
+                "initial_capital": round(initial_capital, 2),
+                "ending_capital": round(capital, 2),
+                "net_profit": round(capital - initial_capital, 2),
+                "total_return_pct": round(((capital - initial_capital) / initial_capital) * 100, 2),
+                "total_points_gained": round(sum(t["points_pnl"] for t in trades), 2),
+                "avg_range_points": round(float(np.mean([t["or_range"] for t in trades])), 2) if trades else 0.0,
             },
             "recent_trades": trades,
         }
