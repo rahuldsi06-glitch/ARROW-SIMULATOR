@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from ..config import Config
@@ -21,8 +21,10 @@ from ..game.routes import router as game_router
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+if not STATIC_DIR.exists():
+    STATIC_DIR = Path.cwd() / "arrow_trader" / "web" / "static"
 
-app = FastAPI(title="Arrow.Trade Algo Trading Interface", version="1.0.0")
+app = FastAPI(title="Arrow.Trade Algo Trading Interface", version="1.0.0", redirect_slashes=False)
 
 # Mount game routes
 app.include_router(game_router)
@@ -141,14 +143,25 @@ async def startup_event():
 
 
 @app.get("/")
-def get_root():
-    return FileResponse(STATIC_DIR / "index.html")
-
-
 @app.get("/game")
 @app.get("/simulator")
 def get_game_page():
-    return FileResponse(STATIC_DIR / "game.html")
+    game_file = STATIC_DIR / "game.html"
+    if game_file.exists():
+        return HTMLResponse(content=game_file.read_text(encoding="utf-8"))
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Arrow Trade Pro Simulator</h1><p>Initializing...</p>", status_code=200)
+
+
+@app.get("/algo")
+@app.get("/terminal")
+def get_algo_terminal():
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Arrow Trade Algo Terminal</h1>", status_code=200)
 
 
 @app.get("/callback")

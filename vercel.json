@@ -1,16 +1,21 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api/index"
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": [
+          "arrow_trader/web/static/**",
+          "data/**"
+        ]
+      }
     }
   ],
-  "functions": {
-    "api/index.py": {
-      "memory": 1024,
-      "maxDuration": 15,
-      "includeFiles": "arrow_trader/web/static/**,data/**"
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
     }
-  }
+  ]
 }

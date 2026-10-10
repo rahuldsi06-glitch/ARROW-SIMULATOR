@@ -15,7 +15,12 @@ from ..market import MarketService
 logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "game_cache"
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+if not CACHE_DIR.exists():
+    CACHE_DIR = Path.cwd() / "data" / "game_cache"
+try:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 DATES_CACHE_FILE = CACHE_DIR / "trading_dates.json"
 GAME_STATE_FILE = CACHE_DIR / "game_state.json"
 
