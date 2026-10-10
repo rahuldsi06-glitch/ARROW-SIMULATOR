@@ -280,6 +280,10 @@
       this.fibMode = false;
       this.fibStep = 0;
       this.fibAnchor1 = null;
+      this.isDraggingFib = false;
+      this.lastFibPoints = null;
+      this.lastDrawnFibP2 = null;
+      this.fibSettings = this.getDefaultFibSettings();
       this.chartPickMode = null; // null | 'SL' | 'TARGET'
       this.previewLines = [];
 
@@ -298,12 +302,24 @@
       this.volumeSeries = null;
       this.ema9Series = null;
       this.ema21Series = null;
+      this.ema50Series = null;
+      this.ma200Series = null;
       this.vwapSeries = null;
+      this.supertrendUpSeries = null;
+      this.supertrendDownSeries = null;
       this.activePriceLines = [];
       this.chartMarkers = [];
 
       // Cache for technical indicators computed on session candles
-      this.indicatorData = { ema9: [], ema21: [], vwap: [] };
+      this.indicatorData = {
+        ema9: [],
+        ema21: [],
+        ema50: [],
+        ma200: [],
+        vwap: [],
+        supertrendUp: [],
+        supertrendDown: []
+      };
 
       // Initialize
       this.dom = {};
@@ -311,6 +327,7 @@
     }
 
     async init() {
+      this.loadFibSettings();
       this.cacheDomElements();
       this.initChart();
       this.bindEvents();
@@ -364,6 +381,7 @@
       // Chart Drawing & Interactive Placing Tools
       this.dom.btnFitChart = document.getElementById("btn-fit-chart");
       this.dom.btnDrawFib = document.getElementById("btn-draw-fib");
+      this.dom.btnFibSettings = document.getElementById("btn-fib-settings");
       this.dom.btnAutoFib = document.getElementById("btn-auto-fib");
       this.dom.btnClearFib = document.getElementById("btn-clear-fib");
       this.dom.btnChartPickTarget = document.getElementById("btn-chart-pick-target");
@@ -375,7 +393,10 @@
       // Indicators
       this.dom.toggleEma9 = document.getElementById("toggle-ema9");
       this.dom.toggleEma21 = document.getElementById("toggle-ema21");
+      this.dom.toggleEma50 = document.getElementById("toggle-ema50");
+      this.dom.toggleMa200 = document.getElementById("toggle-ma200");
       this.dom.toggleVwap = document.getElementById("toggle-vwap");
+      this.dom.toggleSupertrend = document.getElementById("toggle-supertrend");
 
       // Replay Deck
       this.dom.btnReplayRestart = document.getElementById("btn-replay-restart");
@@ -457,6 +478,17 @@
       this.dom.btnEodReplayDay = document.getElementById("btn-eod-replay-day");
       this.dom.btnEodClose = document.getElementById("btn-eod-close");
       this.dom.btnGotIt = document.getElementById("btn-gotIt") || document.getElementById("btn-got-it");
+
+      // Fib Settings Modal
+      this.dom.modalFibSettings = document.getElementById("modal-fib-settings");
+      this.dom.btnCloseFibSettings = document.getElementById("btn-close-fib-settings");
+      this.dom.btnCancelFibSettings = document.getElementById("btn-cancel-fib-settings");
+      this.dom.btnSaveFibSettings = document.getElementById("btn-save-fib-settings");
+      this.dom.btnResetFibDefaults = document.getElementById("btn-reset-fib-defaults");
+      this.dom.btnFibAddLevel = document.getElementById("btn-fib-add-level");
+      this.dom.fibLevelsList = document.getElementById("fib-levels-list");
+      this.dom.fibOptPrices = document.getElementById("fib-opt-prices");
+      this.dom.fibOptLabels = document.getElementById("fib-opt-labels");
     }
 
     loadSavedState() {
@@ -616,10 +648,43 @@
         priceLineVisible: false,
       });
 
+      this.ema50Series = this.chart.addLineSeries({
+        color: "#a855f7",
+        lineWidth: 1.5,
+        title: "EMA 50",
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      this.ma200Series = this.chart.addLineSeries({
+        color: "#f97316",
+        lineWidth: 2,
+        title: "200 MA",
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
       this.vwapSeries = this.chart.addLineSeries({
         color: "#8b5cf6",
         lineWidth: 1.5,
         title: "VWAP",
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      // Supertrend (Bull: Emerald Green, Bear: Crimson Red)
+      this.supertrendUpSeries = this.chart.addLineSeries({
+        color: "#10b981",
+        lineWidth: 2,
+        title: "Supertrend (Bull)",
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      this.supertrendDownSeries = this.chart.addLineSeries({
+        color: "#f43f5e",
+        lineWidth: 2,
+        title: "Supertrend (Bear)",
         lastValueVisible: false,
         priceLineVisible: false,
       });
@@ -641,6 +706,72 @@
         ro.observe(this.dom.chartWrapper);
       }
       setTimeout(updateChartDimensions, 100);
+
+      // Mouse & Touch Drag Support for interactive on-screen Fibonacci Drawing
+      const getChartPointPrice = (e) => {
+        if (!this.candleSeries || !this.dom.tvChart) return null;
+        const rect = this.dom.tvChart.getBoundingClientRect();
+        const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+        if (typeof clientY !== "number") return null;
+        const y = clientY - rect.top;
+        if (y < 0 || y > rect.height) return null;
+        const p = this.candleSeries.coordinateToPrice(y);
+        return (p != null && !isNaN(p) && p > 0) ? p : null;
+      };
+
+      const onPointerDown = (e) => {
+        if (!this.fibMode) return;
+        const price = getChartPointPrice(e);
+        if (!price) return;
+        this.isDraggingFib = true;
+        this.fibDragStartPrice = price;
+        this.fibAnchor1 = price;
+        this.fibStep = 2;
+        // Temporarily disable chart pan so mouse drag draws Fibonacci cleanly
+        this.chart.applyOptions({
+          handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false }
+        });
+        this.drawFibRetracement(this.fibAnchor1, price);
+        this.dom.chartActionText.innerText = `📐 Dragging Fib from ₹${this.fibAnchor1.toFixed(1)}... Release to place.`;
+      };
+
+      const onPointerMove = (e) => {
+        if (!this.fibMode) return;
+        if (this.isDraggingFib || this.fibStep === 2) {
+          const price = getChartPointPrice(e);
+          if (price && this.fibAnchor1) {
+            this.drawFibRetracement(this.fibAnchor1, price);
+            const status = this.isDraggingFib ? "Release to place" : "Click to place";
+            this.dom.chartActionText.innerText = `📐 Fib: ₹${this.fibAnchor1.toFixed(1)} → ₹${price.toFixed(1)} (${status})`;
+          }
+        }
+      };
+
+      const onPointerUp = (e) => {
+        if (!this.fibMode) return;
+        if (this.isDraggingFib) {
+          this.chart.applyOptions({
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }
+          });
+          this.isDraggingFib = false;
+          const price = getChartPointPrice(e) || this.lastDrawnFibP2;
+          if (price && this.fibAnchor1 && Math.abs(price - this.fibAnchor1) > 0.5) {
+            this.lastFibPoints = { p1: this.fibAnchor1, p2: price };
+            this.drawFibRetracement(this.fibAnchor1, price);
+            this.cancelChartAction();
+            this.audio.playClick();
+          }
+        }
+      };
+
+      if (this.dom.tvChart) {
+        this.dom.tvChart.addEventListener("mousedown", onPointerDown);
+        this.dom.tvChart.addEventListener("touchstart", onPointerDown, { passive: true });
+      }
+      window.addEventListener("mousemove", onPointerMove);
+      window.addEventListener("mouseup", onPointerUp);
+      window.addEventListener("touchmove", onPointerMove, { passive: true });
+      window.addEventListener("touchend", onPointerUp, { passive: true });
 
       // Interactive Chart Click Handler for Fibonacci & SL/Target placement
       this.chart.subscribeClick((param) => {
@@ -674,7 +805,11 @@
       if (this.volumeSeries) this.volumeSeries.setData([]);
       if (this.ema9Series) this.ema9Series.setData([]);
       if (this.ema21Series) this.ema21Series.setData([]);
+      if (this.ema50Series) this.ema50Series.setData([]);
+      if (this.ma200Series) this.ma200Series.setData([]);
       if (this.vwapSeries) this.vwapSeries.setData([]);
+      if (this.supertrendUpSeries) this.supertrendUpSeries.setData([]);
+      if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
 
       const sym = symbol || this.currentSymbol;
 
@@ -719,6 +854,9 @@
     computeTechnicalIndicators(candles) {
       if (!candles || !candles.length) return;
 
+      const closes = candles.map(c => c.close);
+
+      // EMA calculation helper
       const ema = (period, values) => {
         const k = 2 / (period + 1);
         const res = [];
@@ -731,9 +869,26 @@
         return res;
       };
 
-      const closes = candles.map(c => c.close);
+      // SMA with cumulative warmup
+      const sma = (period, values) => {
+        const res = [];
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+          sum += values[i];
+          if (i < period) {
+            res.push(sum / (i + 1));
+          } else {
+            sum -= values[i - period];
+            res.push(sum / period);
+          }
+        }
+        return res;
+      };
+
       const ema9Vals = ema(9, closes);
       const ema21Vals = ema(21, closes);
+      const ema50Vals = ema(50, closes);
+      const ma200Vals = sma(200, closes);
 
       // VWAP = sum(typical_price * volume) / sum(volume)
       let cumVol = 0;
@@ -747,9 +902,89 @@
         vwapVals.push(cumVol > 0 ? (cumTypicalVol / cumVol) : c.close);
       });
 
+      // Supertrend (ATR 10, Multiplier 3.0)
+      const n = candles.length;
+      const tr = [];
+      for (let i = 0; i < n; i++) {
+        const h = candles[i].high;
+        const l = candles[i].low;
+        const prevClose = i > 0 ? candles[i - 1].close : candles[i].open;
+        const trVal = Math.max(h - l, Math.abs(h - prevClose), Math.abs(l - prevClose));
+        tr.push(trVal);
+      }
+
+      const atrPeriod = 10;
+      const mult = 3.0;
+      const atr = [];
+      let sumTr = 0;
+      for (let i = 0; i < Math.min(atrPeriod, n); i++) {
+        sumTr += tr[i];
+        atr.push(sumTr / (i + 1));
+      }
+      for (let i = atrPeriod; i < n; i++) {
+        const curAtr = (atr[i - 1] * (atrPeriod - 1) + tr[i]) / atrPeriod;
+        atr.push(curAtr);
+      }
+
+      let prevFinalUp = 0;
+      let prevFinalDown = 0;
+      let trend = 1;
+      const supertrendUp = [];
+      const supertrendDown = [];
+
+      for (let i = 0; i < n; i++) {
+        const bar = candles[i];
+        const hl2 = (bar.high + bar.low) / 2.0;
+        const curAtr = atr[i] || (bar.high - bar.low);
+        const basicUp = hl2 + mult * curAtr;
+        const basicDown = hl2 - mult * curAtr;
+
+        let finalUp = basicUp;
+        let finalDown = basicDown;
+
+        if (i > 0) {
+          finalUp = (basicUp < prevFinalUp || candles[i - 1].close > prevFinalUp) ? basicUp : prevFinalUp;
+          finalDown = (basicDown > prevFinalDown || candles[i - 1].close < prevFinalDown) ? basicDown : prevFinalDown;
+        }
+
+        let curTrend = trend;
+        if (trend === 1) {
+          if (bar.close < finalDown) {
+            curTrend = -1;
+          } else {
+            curTrend = 1;
+          }
+        } else {
+          if (bar.close > finalUp) {
+            curTrend = 1;
+          } else {
+            curTrend = -1;
+          }
+        }
+
+        const stVal = curTrend === 1 ? finalDown : finalUp;
+        const roundVal = Math.round(stVal * 100) / 100;
+
+        if (curTrend === 1) {
+          supertrendUp.push({ time: bar.time, value: roundVal });
+          supertrendDown.push({ time: bar.time });
+        } else {
+          supertrendDown.push({ time: bar.time, value: roundVal });
+          supertrendUp.push({ time: bar.time });
+        }
+
+        trend = curTrend;
+        prevFinalUp = finalUp;
+        prevFinalDown = finalDown;
+      }
+
       this.indicatorData.ema9 = candles.map((c, i) => ({ time: c.time, value: Math.round(ema9Vals[i] * 100) / 100 }));
       this.indicatorData.ema21 = candles.map((c, i) => ({ time: c.time, value: Math.round(ema21Vals[i] * 100) / 100 }));
+      this.indicatorData.ema50 = candles.map((c, i) => ({ time: c.time, value: Math.round(ema50Vals[i] * 100) / 100 }));
+      this.indicatorData.ma200 = candles.map((c, i) => ({ time: c.time, value: Math.round(ma200Vals[i] * 100) / 100 }));
       this.indicatorData.vwap = candles.map((c, i) => ({ time: c.time, value: Math.round(vwapVals[i] * 100) / 100 }));
+      this.indicatorData.supertrendUp = supertrendUp;
+      this.indicatorData.supertrendDown = supertrendDown;
     }
 
     updateHeaderAndInfo() {
@@ -871,22 +1106,44 @@
       this.volumeSeries.setData(formattedVols);
 
       // Overlays: only set data for active indicators, explicitly clear inactive ones
+      const endIndex = this.currentBarIndex + 1;
+
       if (this.dom.toggleEma9 && this.dom.toggleEma9.classList.contains("active")) {
-        this.ema9Series.setData(this.indicatorData.ema9.slice(0, this.currentBarIndex + 1));
+        this.ema9Series.setData(this.indicatorData.ema9.slice(0, endIndex));
       } else if (this.ema9Series) {
         this.ema9Series.setData([]);
       }
 
       if (this.dom.toggleEma21 && this.dom.toggleEma21.classList.contains("active")) {
-        this.ema21Series.setData(this.indicatorData.ema21.slice(0, this.currentBarIndex + 1));
+        this.ema21Series.setData(this.indicatorData.ema21.slice(0, endIndex));
       } else if (this.ema21Series) {
         this.ema21Series.setData([]);
       }
 
+      if (this.dom.toggleEma50 && this.dom.toggleEma50.classList.contains("active")) {
+        this.ema50Series.setData(this.indicatorData.ema50.slice(0, endIndex));
+      } else if (this.ema50Series) {
+        this.ema50Series.setData([]);
+      }
+
+      if (this.dom.toggleMa200 && this.dom.toggleMa200.classList.contains("active")) {
+        this.ma200Series.setData(this.indicatorData.ma200.slice(0, endIndex));
+      } else if (this.ma200Series) {
+        this.ma200Series.setData([]);
+      }
+
       if (this.dom.toggleVwap && this.dom.toggleVwap.classList.contains("active")) {
-        this.vwapSeries.setData(this.indicatorData.vwap.slice(0, this.currentBarIndex + 1));
+        this.vwapSeries.setData(this.indicatorData.vwap.slice(0, endIndex));
       } else if (this.vwapSeries) {
         this.vwapSeries.setData([]);
+      }
+
+      if (this.dom.toggleSupertrend && this.dom.toggleSupertrend.classList.contains("active")) {
+        this.supertrendUpSeries.setData(this.indicatorData.supertrendUp.slice(0, endIndex));
+        this.supertrendDownSeries.setData(this.indicatorData.supertrendDown.slice(0, endIndex));
+      } else {
+        if (this.supertrendUpSeries) this.supertrendUpSeries.setData([]);
+        if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
       }
 
       this.candleSeries.setMarkers(this.chartMarkers);
@@ -1381,19 +1638,178 @@
     // ========================================================================
     // FIBONACCI RETRACEMENT & INTERACTIVE CHART PLACEMENT
     // ========================================================================
+    getDefaultFibSettings() {
+      return {
+        showPrices: true,
+        showLabels: true,
+        levels: [
+          { ratio: 0.0, label: "0.0%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 0.236, label: "23.6%", color: "#38bdf8", width: 1, style: 2, enabled: true },
+          { ratio: 0.382, label: "38.2%", color: "#f59e0b", width: 1, style: 2, enabled: true },
+          { ratio: 0.500, label: "50.0% (Eq)", color: "#ec4899", width: 1.5, style: 0, enabled: true },
+          { ratio: 0.618, label: "61.8% (Golden)", color: "#10b981", width: 2, style: 0, enabled: true },
+          { ratio: 0.786, label: "78.6%", color: "#a855f7", width: 1, style: 2, enabled: true },
+          { ratio: 1.000, label: "100.0%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 1.272, label: "127.2%", color: "#3b82f6", width: 1, style: 2, enabled: false },
+          { ratio: 1.618, label: "161.8% (Ext)", color: "#06b6d4", width: 1.5, style: 2, enabled: true },
+          { ratio: 2.618, label: "261.8%", color: "#eab308", width: 1, style: 2, enabled: false }
+        ]
+      };
+    }
+
+    loadFibSettings() {
+      try {
+        const saved = localStorage.getItem("arrow_fib_settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.levels) && parsed.levels.length > 0) {
+            this.fibSettings = parsed;
+            return;
+          }
+        }
+      } catch (e) {}
+      this.fibSettings = this.getDefaultFibSettings();
+    }
+
+    saveFibSettings() {
+      try {
+        localStorage.setItem("arrow_fib_settings", JSON.stringify(this.fibSettings));
+      } catch (e) {}
+    }
+
+    openFibSettingsModal() {
+      this.renderFibSettingsList();
+      if (this.dom.fibOptPrices) {
+        this.dom.fibOptPrices.checked = this.fibSettings.showPrices !== false;
+      }
+      if (this.dom.fibOptLabels) {
+        this.dom.fibOptLabels.checked = this.fibSettings.showLabels !== false;
+      }
+      if (this.dom.modalFibSettings) {
+        this.dom.modalFibSettings.classList.remove("hidden");
+      }
+      this.audio.playClick();
+    }
+
+    renderFibSettingsList() {
+      if (!this.dom.fibLevelsList) return;
+      const levels = this.fibSettings.levels;
+      this.dom.fibLevelsList.innerHTML = levels.map((lvl, idx) => {
+        return `
+          <div class="fib-level-row" data-idx="${idx}">
+            <div style="text-align:center;">
+              <input type="checkbox" class="fib-row-enabled" ${lvl.enabled !== false ? "checked" : ""}>
+            </div>
+            <div>
+              <input type="number" step="0.001" class="fib-input-ratio" value="${lvl.ratio}">
+            </div>
+            <div>
+              <input type="text" class="fib-input-label" value="${lvl.label || ""}">
+            </div>
+            <div style="text-align:center;">
+              <input type="color" class="fib-input-color" value="${lvl.color || "#38bdf8"}">
+            </div>
+            <div>
+              <select class="fib-select-style">
+                <option value="0" ${lvl.style === 0 ? "selected" : ""}>Solid</option>
+                <option value="2" ${lvl.style === 2 ? "selected" : ""}>Dashed</option>
+                <option value="1" ${lvl.style === 1 ? "selected" : ""}>Dotted</option>
+              </select>
+            </div>
+            <div style="text-align:center;">
+              <button class="fib-btn-del" title="Remove level">✕</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Bind row inputs
+      this.dom.fibLevelsList.querySelectorAll(".fib-level-row").forEach(row => {
+        const idx = parseInt(row.getAttribute("data-idx"));
+        const chk = row.querySelector(".fib-row-enabled");
+        const ratioInp = row.querySelector(".fib-input-ratio");
+        const labelInp = row.querySelector(".fib-input-label");
+        const colorInp = row.querySelector(".fib-input-color");
+        const styleSel = row.querySelector(".fib-select-style");
+        const delBtn = row.querySelector(".fib-btn-del");
+
+        if (chk) chk.addEventListener("change", (e) => { levels[idx].enabled = e.target.checked; });
+        if (ratioInp) ratioInp.addEventListener("input", (e) => {
+          const val = parseFloat(e.target.value);
+          if (!isNaN(val)) levels[idx].ratio = val;
+        });
+        if (labelInp) labelInp.addEventListener("input", (e) => { levels[idx].label = e.target.value; });
+        if (colorInp) colorInp.addEventListener("input", (e) => { levels[idx].color = e.target.value; });
+        if (styleSel) styleSel.addEventListener("change", (e) => { levels[idx].style = parseInt(e.target.value); });
+        if (delBtn) delBtn.addEventListener("click", () => {
+          levels.splice(idx, 1);
+          this.renderFibSettingsList();
+        });
+      });
+    }
+
+    applyFibPreset(presetName) {
+      if (presetName === "tradingview") {
+        this.fibSettings.levels = [
+          { ratio: 0.0, label: "0.0%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 0.236, label: "23.6%", color: "#38bdf8", width: 1, style: 2, enabled: true },
+          { ratio: 0.382, label: "38.2%", color: "#f59e0b", width: 1, style: 2, enabled: true },
+          { ratio: 0.500, label: "50.0% (Eq)", color: "#ec4899", width: 1.5, style: 0, enabled: true },
+          { ratio: 0.618, label: "61.8% (Golden)", color: "#10b981", width: 2, style: 0, enabled: true },
+          { ratio: 0.786, label: "78.6%", color: "#a855f7", width: 1, style: 2, enabled: true },
+          { ratio: 1.000, label: "100.0%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 1.618, label: "161.8% (Ext)", color: "#06b6d4", width: 1.5, style: 2, enabled: true },
+        ];
+      } else if (presetName === "ict") {
+        this.fibSettings.levels = [
+          { ratio: 0.0, label: "0.0% (Low)", color: "#64748b", width: 1, style: 2, enabled: true },
+          { ratio: 0.500, label: "50.0% (Equilibrium)", color: "#38bdf8", width: 1.5, style: 0, enabled: true },
+          { ratio: 0.620, label: "62.0% (OTE Entry)", color: "#10b981", width: 2, style: 0, enabled: true },
+          { ratio: 0.705, label: "70.5% (Sweet Spot)", color: "#f59e0b", width: 2, style: 0, enabled: true },
+          { ratio: 0.790, label: "79.0% (Deep OTE)", color: "#ec4899", width: 2, style: 0, enabled: true },
+          { ratio: 1.000, label: "100.0% (High)", color: "#64748b", width: 1, style: 2, enabled: true },
+          { ratio: -0.27, label: "-27.0% (Target 1)", color: "#a855f7", width: 1.5, style: 2, enabled: true },
+          { ratio: -0.62, label: "-62.0% (Target 2)", color: "#06b6d4", width: 1.5, style: 2, enabled: true },
+        ];
+      } else if (presetName === "neon") {
+        this.fibSettings.levels = [
+          { ratio: 0.0, label: "0.0%", color: "#38bdf8", width: 1, style: 0, enabled: true },
+          { ratio: 0.236, label: "23.6%", color: "#22d3ee", width: 1, style: 2, enabled: true },
+          { ratio: 0.382, label: "38.2%", color: "#facc15", width: 1, style: 2, enabled: true },
+          { ratio: 0.500, label: "50.0%", color: "#f43f5e", width: 2, style: 0, enabled: true },
+          { ratio: 0.618, label: "61.8%", color: "#4ade80", width: 2, style: 0, enabled: true },
+          { ratio: 0.786, label: "78.6%", color: "#c084fc", width: 1, style: 2, enabled: true },
+          { ratio: 1.000, label: "100.0%", color: "#38bdf8", width: 1, style: 0, enabled: true },
+          { ratio: 1.618, label: "161.8%", color: "#e879f9", width: 2, style: 2, enabled: true },
+        ];
+      } else if (presetName === "monochrome") {
+        this.fibSettings.levels = [
+          { ratio: 0.0, label: "0.0%", color: "#94a3b8", width: 1, style: 0, enabled: true },
+          { ratio: 0.236, label: "23.6%", color: "#64748b", width: 1, style: 2, enabled: true },
+          { ratio: 0.382, label: "38.2%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 0.500, label: "50.0%", color: "#e2e8f0", width: 2, style: 0, enabled: true },
+          { ratio: 0.618, label: "61.8%", color: "#ffffff", width: 2, style: 0, enabled: true },
+          { ratio: 0.786, label: "78.6%", color: "#94a3b8", width: 1, style: 2, enabled: true },
+          { ratio: 1.000, label: "100.0%", color: "#94a3b8", width: 1, style: 0, enabled: true },
+        ];
+      }
+      this.renderFibSettingsList();
+    }
+
     handleChartClick(param) {
       if (!param || !param.point || !this.candleSeries) return;
       const clickedPrice = this.candleSeries.coordinateToPrice(param.point.y);
       if (clickedPrice == null || isNaN(clickedPrice) || clickedPrice <= 0) return;
 
-      // 1. Fibonacci Drawing Mode
-      if (this.fibMode) {
+      // 1. Fibonacci Drawing Mode (Click-Click fallback)
+      if (this.fibMode && !this.isDraggingFib) {
         if (this.fibStep === 1) {
           this.fibAnchor1 = clickedPrice;
           this.fibStep = 2;
-          this.dom.chartActionText.innerText = `📐 Fib Anchor 1 set at ₹${clickedPrice.toFixed(2)}. Click Point 2 (Swing High / Low)...`;
+          this.dom.chartActionText.innerText = `📐 Fib Anchor 1 set at ₹${clickedPrice.toFixed(2)}. Move mouse or click Point 2...`;
           this.audio.playClick();
         } else if (this.fibStep === 2) {
+          this.lastFibPoints = { p1: this.fibAnchor1, p2: clickedPrice };
           this.drawFibRetracement(this.fibAnchor1, clickedPrice);
           this.cancelChartAction();
           this.audio.playClick();
@@ -1419,8 +1835,9 @@
       this.fibMode = true;
       this.fibStep = 1;
       this.fibAnchor1 = null;
+      this.isDraggingFib = false;
       this.dom.btnDrawFib.classList.add("active");
-      this.dom.chartActionText.innerText = "📐 Fibonacci: Click Point 1 (Swing Low or High) on chart...";
+      this.dom.chartActionText.innerText = "📐 Fibonacci: Drag across chart, or click 2 points to draw...";
       this.dom.chartActionBanner.classList.remove("hidden");
       this.audio.playClick();
     }
@@ -1444,8 +1861,10 @@
       const curClose = visible[visible.length - 1].close;
       // In uptrend, anchor Low to High; in downtrend, anchor High to Low
       if (curClose >= dayOpen) {
+        this.lastFibPoints = { p1: minLow, p2: maxHigh };
         this.drawFibRetracement(minLow, maxHigh);
       } else {
+        this.lastFibPoints = { p1: maxHigh, p2: minLow };
         this.drawFibRetracement(maxHigh, minLow);
       }
       this.audio.playClick();
@@ -1453,27 +1872,30 @@
 
     drawFibRetracement(p1, p2) {
       this.clearFib();
+      this.lastFibPoints = { p1, p2 };
+      this.lastDrawnFibP2 = p2;
       const diff = p2 - p1;
-      const levels = [
-        { ratio: 0.0, label: "0.0%", color: "#94a3b8", width: 1, style: 2 },
-        { ratio: 0.236, label: "23.6%", color: "#38bdf8", width: 1, style: 2 },
-        { ratio: 0.382, label: "38.2%", color: "#f59e0b", width: 1, style: 2 },
-        { ratio: 0.500, label: "50.0% (Eq)", color: "#ec4899", width: 1.5, style: 0 },
-        { ratio: 0.618, label: "61.8% (Golden Pocket)", color: "#10b981", width: 2, style: 0 },
-        { ratio: 0.786, label: "78.6%", color: "#a855f7", width: 1, style: 2 },
-        { ratio: 1.000, label: "100.0%", color: "#94a3b8", width: 1, style: 2 },
-        { ratio: 1.618, label: "161.8% (Golden Ext)", color: "#06b6d4", width: 1.5, style: 2 },
-      ];
+
+      const levels = (this.fibSettings && Array.isArray(this.fibSettings.levels))
+        ? this.fibSettings.levels
+        : this.getDefaultFibSettings().levels;
+      const showPrices = this.fibSettings ? this.fibSettings.showPrices !== false : true;
+      const showLabels = this.fibSettings ? this.fibSettings.showLabels !== false : true;
 
       levels.forEach(lvl => {
+        if (lvl.enabled === false) return;
         const lvlPrice = p1 + diff * lvl.ratio;
+        const titleParts = ["Fib"];
+        if (showLabels && lvl.label) titleParts.push(lvl.label);
+        if (showPrices) titleParts.push(`(₹${lvlPrice.toFixed(1)})`);
+
         const line = this.candleSeries.createPriceLine({
           price: lvlPrice,
-          color: lvl.color,
-          lineWidth: lvl.width,
-          lineStyle: lvl.style,
+          color: lvl.color || "#38bdf8",
+          lineWidth: lvl.width || 1,
+          lineStyle: (typeof lvl.style === "number") ? lvl.style : 2,
           axisLabelVisible: true,
-          title: `Fib ${lvl.label} (₹${lvlPrice.toFixed(1)})`
+          title: titleParts.join(" ")
         });
         this.fibLines.push(line);
       });
@@ -1508,6 +1930,12 @@
       this.fibMode = false;
       this.fibStep = 0;
       this.fibAnchor1 = null;
+      this.isDraggingFib = false;
+      if (this.chart) {
+        this.chart.applyOptions({
+          handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }
+        });
+      }
       this.chartPickMode = null;
       this.dom.chartActionBanner.classList.add("hidden");
       this.dom.btnDrawFib.classList.remove("active");
@@ -1973,7 +2401,14 @@
       });
 
       // Technical Overlays
-      [this.dom.toggleEma9, this.dom.toggleEma21, this.dom.toggleVwap].forEach(btn => {
+      [
+        this.dom.toggleEma9,
+        this.dom.toggleEma21,
+        this.dom.toggleEma50,
+        this.dom.toggleMa200,
+        this.dom.toggleVwap,
+        this.dom.toggleSupertrend
+      ].filter(Boolean).forEach(btn => {
         btn.addEventListener("click", () => {
           btn.classList.toggle("active");
           this.renderCurrentChartState();
@@ -2017,6 +2452,60 @@
         });
       }
       this.dom.btnDrawFib.addEventListener("click", () => this.startFibDrawing());
+      if (this.dom.btnFibSettings) {
+        this.dom.btnFibSettings.addEventListener("click", () => this.openFibSettingsModal());
+      }
+      if (this.dom.btnCloseFibSettings) {
+        this.dom.btnCloseFibSettings.addEventListener("click", () => this.dom.modalFibSettings.classList.add("hidden"));
+      }
+      if (this.dom.btnCancelFibSettings) {
+        this.dom.btnCancelFibSettings.addEventListener("click", () => this.dom.modalFibSettings.classList.add("hidden"));
+      }
+      if (this.dom.btnSaveFibSettings) {
+        this.dom.btnSaveFibSettings.addEventListener("click", () => {
+          if (this.dom.fibOptPrices) this.fibSettings.showPrices = this.dom.fibOptPrices.checked;
+          if (this.dom.fibOptLabels) this.fibSettings.showLabels = this.dom.fibOptLabels.checked;
+          this.saveFibSettings();
+          this.dom.modalFibSettings.classList.add("hidden");
+          this.audio.playClick();
+          if (this.lastFibPoints) {
+            this.drawFibRetracement(this.lastFibPoints.p1, this.lastFibPoints.p2);
+          }
+        });
+      }
+      if (this.dom.btnResetFibDefaults) {
+        this.dom.btnResetFibDefaults.addEventListener("click", () => {
+          this.fibSettings = this.getDefaultFibSettings();
+          this.renderFibSettingsList();
+          if (this.dom.fibOptPrices) this.dom.fibOptPrices.checked = true;
+          if (this.dom.fibOptLabels) this.dom.fibOptLabels.checked = true;
+          this.saveFibSettings();
+          this.audio.playClick();
+          if (this.lastFibPoints) {
+            this.drawFibRetracement(this.lastFibPoints.p1, this.lastFibPoints.p2);
+          }
+        });
+      }
+      if (this.dom.btnFibAddLevel) {
+        this.dom.btnFibAddLevel.addEventListener("click", () => {
+          this.fibSettings.levels.push({
+            ratio: 0.5,
+            label: "Custom",
+            color: "#38bdf8",
+            width: 1,
+            style: 2,
+            enabled: true
+          });
+          this.renderFibSettingsList();
+        });
+      }
+      document.querySelectorAll("[data-fib-preset]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-fib-preset]").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          this.applyFibPreset(btn.getAttribute("data-fib-preset"));
+        });
+      });
       this.dom.btnAutoFib.addEventListener("click", () => this.autoSwingFib());
       this.dom.btnClearFib.addEventListener("click", () => {
         this.clearFib();

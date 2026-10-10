@@ -7,7 +7,11 @@ from arrow_trader.game.options_math import (
     norm_pdf,
     calculate_time_to_expiry,
     black_scholes_price,
-    estimate_option_bar_extremes
+    estimate_option_bar_extremes,
+    calculate_ema,
+    calculate_sma,
+    calculate_supertrend,
+    calculate_fibonacci_levels
 )
 from arrow_trader.game.instruments import (
     INSTRUMENTS,
@@ -65,6 +69,60 @@ class TestGameOptionsMath(unittest.TestCase):
         self.assertGreaterEqual(extremes["high"], extremes["close"])
         self.assertLessEqual(extremes["low"], extremes["close"])
         self.assertGreater(extremes["high"], extremes["low"])
+
+    def test_ema_and_sma_indicators(self):
+        series = [100.0 + i * 2.0 for i in range(80)]  # linear uptrend
+        ema50 = calculate_ema(series, period=50)
+        ma200 = calculate_sma(series, period=200)
+
+        self.assertEqual(len(ema50), len(series))
+        self.assertEqual(len(ma200), len(series))
+        # In a steady uptrend, fast EMA lags current price but grows smoothly
+        self.assertGreater(ema50[-1], ema50[0])
+        self.assertGreater(ma200[-1], ma200[0])
+
+    def test_supertrend_indicator(self):
+        # 20 upward-trending candles followed by 10 downward candles
+        candles = []
+        price = 1000.0
+        for i in range(20):
+            price += 10.0
+            candles.append({
+                "open": price - 5,
+                "high": price + 5,
+                "low": price - 8,
+                "close": price,
+            })
+        for i in range(10):
+            price -= 20.0
+            candles.append({
+                "open": price + 5,
+                "high": price + 8,
+                "low": price - 10,
+                "close": price,
+            })
+
+        st_res = calculate_supertrend(candles, period=10, multiplier=3.0)
+        self.assertEqual(len(st_res["supertrend"]), len(candles))
+        self.assertEqual(len(st_res["trend"]), len(candles))
+        # Initial uptrend should be Bullish (trend = 1)
+        self.assertEqual(st_res["trend"][15], 1)
+        # Deep plunge at the end should flip to Bearish (trend = -1)
+        self.assertEqual(st_res["trend"][-1], -1)
+
+    def test_fibonacci_calculations(self):
+        # Swing Low = 23000, Swing High = 24000 (diff = 1000)
+        fibs = calculate_fibonacci_levels(23000.0, 24000.0)
+        self.assertEqual(fibs["0.000"], 23000.0)
+        self.assertEqual(fibs["0.500"], 23500.0)
+        self.assertEqual(fibs["0.618"], 23618.0)
+        self.assertEqual(fibs["1.000"], 24000.0)
+        self.assertEqual(fibs["1.618"], 24618.0)
+
+        # Custom ratios
+        custom_fibs = calculate_fibonacci_levels(100.0, 200.0, custom_ratios=[0.705, 0.79])
+        self.assertAlmostEqual(custom_fibs["0.705"], 170.5)
+        self.assertAlmostEqual(custom_fibs["0.790"], 179.0)
 
 
 class TestInstrumentsCatalog(unittest.TestCase):

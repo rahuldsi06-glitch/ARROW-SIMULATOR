@@ -138,3 +138,121 @@ def estimate_option_bar_extremes(
         "low": min(open_opt, close_opt, low_opt),
         "close": close_opt
     }
+
+
+def calculate_ema(values: list[float], period: int) -> list[float]:
+    """Calculate Exponential Moving Average for a series of values."""
+    if not values:
+        return []
+    k = 2.0 / (period + 1)
+    res = [values[0]]
+    val = values[0]
+    for v in values[1:]:
+        val = v * k + val * (1.0 - k)
+        res.append(round(val, 2))
+    return res
+
+
+def calculate_sma(values: list[float], period: int) -> list[float]:
+    """Calculate Simple Moving Average with cumulative warmup."""
+    if not values:
+        return []
+    res = []
+    rolling_sum = 0.0
+    for i, v in enumerate(values):
+        rolling_sum += v
+        if i < period:
+            res.append(round(rolling_sum / (i + 1), 2))
+        else:
+            rolling_sum -= values[i - period]
+            res.append(round(rolling_sum / period, 2))
+    return res
+
+
+def calculate_supertrend(
+    candles: list[dict[str, Any]],
+    period: int = 10,
+    multiplier: float = 3.0
+) -> dict[str, Any]:
+    """
+    Calculate authentic Supertrend indicator (ATR period 10, multiplier 3.0).
+    Returns supertrend values, upper bands, lower bands, and trend directions (1=Bull, -1=Bear).
+    """
+    if not candles:
+        return {"supertrend": [], "trend": []}
+
+    n = len(candles)
+    tr = []
+    for i in range(n):
+        h = candles[i]["high"]
+        l = candles[i]["low"]
+        prev_close = candles[i - 1]["close"] if i > 0 else candles[i]["open"]
+        tr_val = max(h - l, abs(h - prev_close), abs(l - prev_close))
+        tr.append(tr_val)
+
+    # Wilder's Smoothing for ATR
+    atr = []
+    sum_tr = 0.0
+    for i in range(min(period, n)):
+        sum_tr += tr[i]
+        atr.append(sum_tr / (i + 1))
+    for i in range(period, n):
+        cur_atr = (atr[i - 1] * (period - 1) + tr[i]) / period
+        atr.append(cur_atr)
+
+    prev_final_up = 0.0
+    prev_final_down = 0.0
+    trend = 1
+    supertrend_vals = []
+    trend_vals = []
+
+    for i in range(n):
+        c = candles[i]
+        hl2 = (c["high"] + c["low"]) / 2.0
+        cur_atr = atr[i] if i < len(atr) else (c["high"] - c["low"])
+        basic_up = hl2 + multiplier * cur_atr
+        basic_down = hl2 - multiplier * cur_atr
+
+        final_up = basic_up
+        final_down = basic_down
+        if i > 0:
+            final_up = basic_up if (basic_up < prev_final_up or candles[i - 1]["close"] > prev_final_up) else prev_final_up
+            final_down = basic_down if (basic_down > prev_final_down or candles[i - 1]["close"] < prev_final_down) else prev_final_down
+
+        if trend == 1:
+            if c["close"] < final_down:
+                trend = -1
+                st = final_up
+            else:
+                trend = 1
+                st = final_down
+        else:
+            if c["close"] > final_up:
+                trend = 1
+                st = final_down
+            else:
+                trend = -1
+                st = final_up
+
+        prev_final_up = final_up
+        prev_final_down = final_down
+        supertrend_vals.append(round(st, 2))
+        trend_vals.append(trend)
+
+    return {
+        "supertrend": supertrend_vals,
+        "trend": trend_vals,
+        "atr": [round(a, 2) for a in atr]
+    }
+
+
+def calculate_fibonacci_levels(
+    anchor1: float,
+    anchor2: float,
+    custom_ratios: list[float] | None = None
+) -> dict[str, float]:
+    """Calculate Fibonacci retracement levels between two price anchors."""
+    ratios = custom_ratios or [0.0, 0.236, 0.382, 0.500, 0.618, 0.786, 1.000, 1.618]
+    diff = anchor2 - anchor1
+    return {f"{r:.3f}": round(anchor1 + diff * r, 2) for r in ratios}
+

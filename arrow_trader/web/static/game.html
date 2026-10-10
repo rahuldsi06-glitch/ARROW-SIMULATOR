@@ -166,7 +166,10 @@
         <div class="indicator-toggles">
           <button id="toggle-ema9" class="indicator-btn active" data-indicator="ema9">EMA 9</button>
           <button id="toggle-ema21" class="indicator-btn active" data-indicator="ema21">EMA 21</button>
+          <button id="toggle-ema50" class="indicator-btn active" data-indicator="ema50">EMA 50</button>
+          <button id="toggle-ma200" class="indicator-btn active" data-indicator="ma200">200 MA</button>
           <button id="toggle-vwap" class="indicator-btn active" data-indicator="vwap">VWAP</button>
+          <button id="toggle-supertrend" class="indicator-btn active" data-indicator="supertrend">Supertrend</button>
         </div>
 
         <!-- Chart Drawing Tools (Fibonacci & Chart Order Placement) -->
@@ -175,8 +178,11 @@
             <span>⛶ Fit View</span>
           </button>
           <span class="tool-separator"></span>
-          <button id="btn-draw-fib" class="tool-btn glow-violet" title="Draw 2-Point Fibonacci Retracement on Chart">
+          <button id="btn-draw-fib" class="tool-btn glow-violet" title="Drag on screen or click 2 points to draw Fibonacci Retracement">
             <span>📐 Draw Fib</span>
+          </button>
+          <button id="btn-fib-settings" class="tool-btn" title="Customize Fibonacci Levels, Colors &amp; Styles">
+            <span>⚙️ Fib Style</span>
           </button>
           <button id="btn-auto-fib" class="tool-btn" title="Auto-detect Intraday High/Low and Plot Fib Levels">
             <span>⚡ Auto Fib</span>
@@ -688,6 +694,59 @@
       </div>
 
       <button id="btn-got-it" class="btn-primary" style="margin-top: 18px; width: 100%;">Got It, Let's Trade!</button>
+    </div>
+  </div>
+
+  <!-- MODAL 4: FIBONACCI RETRACEMENT CUSTOMIZER -->
+  <div id="modal-fib-settings" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal fib-modal-card">
+      <div class="modal-close-btn" id="btn-close-fib-settings">✕</div>
+      <h2 class="modal-title">📐 FIBONACCI CUSTOMIZER</h2>
+      <p class="modal-subtitle">Customize Fib retracement levels, colors, line styles, and presets</p>
+
+      <!-- Quick Preset Chips -->
+      <div class="fib-presets-row">
+        <span class="sub-label">QUICK PALETTES:</span>
+        <button class="preset-chip active" data-fib-preset="tradingview">TradingView Pro</button>
+        <button class="preset-chip" data-fib-preset="ict">ICT Golden Pocket</button>
+        <button class="preset-chip" data-fib-preset="neon">Neon Cyber</button>
+        <button class="preset-chip" data-fib-preset="monochrome">Minimal Gray</button>
+      </div>
+
+      <!-- Global Options -->
+      <div class="fib-options-row">
+        <label class="fib-checkbox-label">
+          <input type="checkbox" id="fib-opt-prices" checked> Show Price Levels (₹)
+        </label>
+        <label class="fib-checkbox-label">
+          <input type="checkbox" id="fib-opt-labels" checked> Show Ratio Labels (%)
+        </label>
+      </div>
+
+      <!-- Header row for levels -->
+      <div class="fib-table-header">
+        <span class="col-vis">Visible</span>
+        <span class="col-ratio">Ratio</span>
+        <span class="col-label">Label</span>
+        <span class="col-color">Color</span>
+        <span class="col-style">Style</span>
+        <span class="col-del">Del</span>
+      </div>
+
+      <!-- Levels Table / Grid -->
+      <div class="fib-levels-container" id="fib-levels-list">
+        <!-- Rendered dynamically by game.js -->
+      </div>
+
+      <div class="fib-add-row">
+        <button id="btn-fib-add-level" class="btn-micro-chart">＋ Add Custom Level</button>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-save-fib-settings" class="btn-primary glow-play">Apply &amp; Save</button>
+        <button id="btn-reset-fib-defaults" class="btn-ghost">Reset Defaults</button>
+        <button id="btn-cancel-fib-settings" class="btn-secondary">Cancel</button>
+      </div>
     </div>
   </div>
 
