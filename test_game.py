@@ -261,6 +261,67 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(cfg["state"]["current_balance"], 1015000.0)
         self.assertEqual(cfg["state"]["all_time_pnl"], 15000.0)
 
+    def test_futures_trade_recording_long_and_short(self):
+        # 1. Reset account
+        self.client.post("/api/game/reset-account", json={"starting_balance": 1000000.0})
+
+        # 2. Record Long Futures trade on NIFTY (+50 pts on 2 lots = 50 * 50 = ₹2,500)
+        fut_long_trade = {
+            "trade_id": "FUT-L001",
+            "symbol": "NIFTY",
+            "instrument_type": "futures",
+            "strike": 0.0,
+            "option_type": "FUT_LONG",
+            "expiry_type": "monthly",
+            "lot_size": 25,
+            "lots": 2,
+            "quantity": 50,
+            "entry_bar": 5,
+            "exit_bar": 15,
+            "entry_time": "09:40",
+            "exit_time": "10:30",
+            "entry_price": 24000.0,
+            "exit_price": 24050.0,
+            "target_price": 24050.0,
+            "stop_loss_price": 23920.0,
+            "pnl": 2500.0,
+            "pnl_pct": 1.67,
+            "exit_reason": "TARGET_HIT"
+        }
+        res_long = self.client.post("/api/game/trade", json=fut_long_trade)
+        self.assertEqual(res_long.status_code, 200)
+        data_long = res_long.json()
+        self.assertEqual(data_long["new_balance"], 1002500.0)
+
+        # 3. Record Short Futures trade on BANKNIFTY (+120 pts on 1 lot = 120 * 15 = ₹1,800)
+        fut_short_trade = {
+            "trade_id": "FUT-S001",
+            "symbol": "BANKNIFTY",
+            "instrument_type": "futures",
+            "strike": 0.0,
+            "option_type": "FUT_SHORT",
+            "expiry_type": "monthly",
+            "lot_size": 15,
+            "lots": 1,
+            "quantity": 15,
+            "entry_bar": 20,
+            "exit_bar": 30,
+            "entry_time": "11:00",
+            "exit_time": "11:50",
+            "entry_price": 51500.0,
+            "exit_price": 51380.0,
+            "target_price": 51380.0,
+            "stop_loss_price": 51650.0,
+            "pnl": 1800.0,
+            "pnl_pct": 1.86,
+            "exit_reason": "TARGET_HIT"
+        }
+        res_short = self.client.post("/api/game/trade", json=fut_short_trade)
+        self.assertEqual(res_short.status_code, 200)
+        data_short = res_short.json()
+        self.assertEqual(data_short["new_balance"], 1004300.0)
+        self.assertEqual(data_short["state"]["trades_count"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

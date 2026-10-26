@@ -28,9 +28,10 @@ class OptionChainRequest(BaseModel):
 class SaveTradeRequest(BaseModel):
     trade_id: str
     symbol: str
-    strike: float
-    option_type: str
-    expiry_type: str
+    instrument_type: Optional[str] = "options"  # 'options' or 'futures'
+    strike: Optional[float] = 0.0
+    option_type: Optional[str] = "CE"  # 'CE', 'PE', 'FUT_LONG', 'FUT_SHORT'
+    expiry_type: Optional[str] = "weekly"
     lot_size: int
     lots: int
     quantity: int

@@ -268,6 +268,10 @@
       this.tradeJournal = [];
 
       // Trading Order Desk state
+      this.instrumentType = "options"; // 'options' or 'futures'
+      this.selectedFutDirection = "LONG"; // 'LONG' or 'SHORT'
+      this.selectedFutSLPct = 0.5; // 0.5% default SL for futures
+      this.selectedFutTargetPct = 1.0; // 1.0% default Target for futures
       this.selectedExpiry = "weekly";
       this.selectedDirection = "CE"; // 'CE' or 'PE'
       this.selectedStrike = null;
@@ -421,7 +425,23 @@
       this.dom.btnSlBreakeven = document.getElementById("btn-sl-breakeven");
       this.dom.btnTrailSl = document.getElementById("btn-trail-sl");
 
-      // Order Desk
+      // Order Desk Header & Instrument Selectors
+      this.dom.deskTitle = document.getElementById("desk-title");
+      this.dom.deskSubtitle = document.getElementById("desk-subtitle");
+      this.dom.btnInstOptions = document.getElementById("btn-inst-options");
+      this.dom.btnInstFutures = document.getElementById("btn-inst-futures");
+      this.dom.optionsSpecificControls = document.getElementById("options-specific-controls");
+      this.dom.futuresSpecificControls = document.getElementById("futures-specific-controls");
+      this.dom.btnFutLong = document.getElementById("btn-fut-long");
+      this.dom.btnFutShort = document.getElementById("btn-fut-short");
+      this.dom.futContractName = document.getElementById("fut-contract-name");
+      this.dom.futLtp = document.getElementById("fut-ltp");
+      this.dom.futMarginPerLot = document.getElementById("fut-margin-per-lot");
+      this.dom.futNotionalVal = document.getElementById("fut-notional-val");
+      this.dom.summaryPriceLabel = document.getElementById("summary-price-label");
+      this.dom.summaryCapitalLabel = document.getElementById("summary-capital-label");
+      this.dom.summaryDeltaLabel = document.getElementById("summary-delta-label");
+
       this.dom.badgeLotSize = document.getElementById("badge-lot-size");
       this.dom.btnOptCall = document.getElementById("btn-opt-call");
       this.dom.btnOptPut = document.getElementById("btn-opt-put");
@@ -1360,7 +1380,210 @@
       this.updateOrderSummary();
     }
 
+    switchInstrumentType(type) {
+      if (this.activePosition) {
+        alert("You have an active open position! Close it before switching instrument desks.");
+        return;
+      }
+      this.instrumentType = type;
+      this.customSLPrice = null;
+      this.customTargetPrice = null;
+      this.clearPreviewLines();
+
+      if (type === "futures") {
+        this.dom.btnInstFutures.classList.add("active");
+        this.dom.btnInstOptions.classList.remove("active");
+        this.dom.futuresSpecificControls.classList.remove("hidden");
+        this.dom.optionsSpecificControls.classList.add("hidden");
+        this.dom.deskTitle.innerText = "FUTURES ORDER DESK";
+        this.dom.deskSubtitle.innerText = "Intraday Futures Margin & Direct Spot Pricing";
+        this.dom.summaryPriceLabel.innerText = "FUT PRICE";
+        this.dom.summaryCapitalLabel.innerText = "MARGIN REQ";
+        this.dom.summaryDeltaLabel.innerText = "LEVERAGE";
+
+        // Update SL & Target preset chips for Futures (percentage of spot)
+        const slValues = ["0.3", "0.5", "1.0", "1.5"];
+        document.querySelectorAll(".preset-chips .preset-chip[data-sl]").forEach((btn, idx) => {
+          if (slValues[idx]) {
+            btn.setAttribute("data-sl", slValues[idx]);
+            btn.innerText = `${slValues[idx]}%`;
+            btn.classList.toggle("active", slValues[idx] === "0.5");
+          }
+        });
+        const targetValues = ["0.5", "1.0", "2.0", "3.0"];
+        document.querySelectorAll(".preset-chips .preset-chip[data-target]").forEach((btn, idx) => {
+          if (targetValues[idx]) {
+            btn.setAttribute("data-target", targetValues[idx]);
+            btn.innerText = `${targetValues[idx]}%`;
+            btn.classList.toggle("active", targetValues[idx] === "1.0");
+          }
+        });
+      } else {
+        this.dom.btnInstOptions.classList.add("active");
+        this.dom.btnInstFutures.classList.remove("active");
+        this.dom.optionsSpecificControls.classList.remove("hidden");
+        this.dom.futuresSpecificControls.classList.add("hidden");
+        this.dom.deskTitle.innerText = "OPTIONS ORDER DESK";
+        this.dom.deskSubtitle.innerText = "Black-Scholes Simulated Live Greeks";
+        this.dom.summaryPriceLabel.innerText = "PREMIUM";
+        this.dom.summaryCapitalLabel.innerText = "TOTAL CAPITAL";
+        this.dom.summaryDeltaLabel.innerText = "EST. DELTA";
+
+        // Restore SL & Target preset chips for Options (percentage of premium)
+        const slValues = ["10", "15", "25", "35"];
+        document.querySelectorAll(".preset-chips .preset-chip[data-sl]").forEach((btn, idx) => {
+          if (slValues[idx]) {
+            btn.setAttribute("data-sl", slValues[idx]);
+            btn.innerText = `${slValues[idx]}%`;
+            btn.classList.toggle("active", slValues[idx] === "15");
+          }
+        });
+        const targetValues = ["20", "30", "50", "100"];
+        document.querySelectorAll(".preset-chips .preset-chip[data-target]").forEach((btn, idx) => {
+          if (targetValues[idx]) {
+            btn.setAttribute("data-target", targetValues[idx]);
+            btn.innerText = `${targetValues[idx]}%`;
+            btn.classList.toggle("active", targetValues[idx] === "30");
+          }
+        });
+      }
+
+      this.updateOrderSummary();
+    }
+
+    setFuturesDirection(dir) {
+      this.selectedFutDirection = dir; // 'LONG' or 'SHORT'
+      if (dir === "LONG") {
+        this.dom.btnFutLong.classList.add("active", "glow-green");
+        this.dom.btnFutShort.classList.remove("active");
+      } else {
+        this.dom.btnFutShort.classList.add("active");
+        this.dom.btnFutLong.classList.remove("active", "glow-green");
+      }
+      this.customSLPrice = null;
+      this.customTargetPrice = null;
+      this.audio.playClick();
+      this.updateOrderSummary();
+    }
+
     updateOrderSummary() {
+      if (this.instrumentType === "futures") {
+        this.updateFuturesOrderSummary();
+      } else {
+        this.updateOptionsOrderSummary();
+      }
+    }
+
+    updateFuturesOrderSummary() {
+      if (!this.session) return;
+      const candle = this.session.candles[this.currentBarIndex];
+      const spot = candle.close;
+      const lot = this.session.lot_size;
+      const isLong = this.selectedFutDirection === "LONG";
+
+      // Margin Rate (~12.5% for Index, ~15% for Stocks)
+      const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
+      const leverage = (1 / marginRate).toFixed(1) + "x";
+      const notionalPerLot = Math.round(spot * lot);
+      const marginPerLot = Math.round(notionalPerLot * marginRate);
+
+      // Contract details in DOM
+      if (this.dom.futContractName) this.dom.futContractName.innerText = `${this.session.symbol} FUT`;
+      if (this.dom.futLtp) this.dom.futLtp.innerText = `₹ ${spot.toFixed(2)}`;
+      if (this.dom.futMarginPerLot) this.dom.futMarginPerLot.innerText = `₹ ${marginPerLot.toLocaleString("en-IN")}`;
+      if (this.dom.futNotionalVal) this.dom.futNotionalVal.innerText = `₹ ${notionalPerLot.toLocaleString("en-IN")}`;
+
+      // 1. Determine Stop Loss Price
+      let slPrice;
+      if (this.customSLPrice != null) {
+        slPrice = this.customSLPrice;
+        if (isLong && slPrice >= spot) {
+          slPrice = Math.round(spot * (1 - this.selectedFutSLPct / 100) * 100) / 100;
+          this.customSLPrice = slPrice;
+        } else if (!isLong && slPrice <= spot) {
+          slPrice = Math.round(spot * (1 + this.selectedFutSLPct / 100) * 100) / 100;
+          this.customSLPrice = slPrice;
+        }
+        const slDiffPct = Math.max(0.1, Math.abs(spot - slPrice) / spot * 100);
+        this.dom.slReadout.innerText = `Custom -${slDiffPct.toFixed(1)}% (₹${slPrice.toFixed(2)})`;
+      } else {
+        slPrice = isLong
+          ? Math.round(spot * (1 - this.selectedFutSLPct / 100) * 100) / 100
+          : Math.round(spot * (1 + this.selectedFutSLPct / 100) * 100) / 100;
+        this.dom.slReadout.innerText = `-${this.selectedFutSLPct}% (₹${slPrice.toFixed(2)})`;
+        if (this.dom.inputSLPrice !== document.activeElement) {
+          this.dom.inputSLPrice.value = slPrice.toFixed(2);
+        }
+      }
+
+      // 2. Determine Target Price
+      let targetPrice;
+      if (this.customTargetPrice != null) {
+        targetPrice = this.customTargetPrice;
+        if (isLong && targetPrice <= spot) {
+          targetPrice = Math.round(spot * (1 + this.selectedFutTargetPct / 100) * 100) / 100;
+          this.customTargetPrice = targetPrice;
+        } else if (!isLong && targetPrice >= spot) {
+          targetPrice = Math.round(spot * (1 - this.selectedFutTargetPct / 100) * 100) / 100;
+          this.customTargetPrice = targetPrice;
+        }
+        const tgDiffPct = Math.max(0.1, Math.abs(targetPrice - spot) / spot * 100);
+        this.dom.targetReadout.innerText = `Custom +${tgDiffPct.toFixed(1)}% (₹${targetPrice.toFixed(2)})`;
+      } else {
+        targetPrice = isLong
+          ? Math.round(spot * (1 + this.selectedFutTargetPct / 100) * 100) / 100
+          : Math.round(spot * (1 - this.selectedFutTargetPct / 100) * 100) / 100;
+        this.dom.targetReadout.innerText = `+${this.selectedFutTargetPct}% (₹${targetPrice.toFixed(2)})`;
+        if (this.dom.inputTargetPrice !== document.activeElement) {
+          this.dom.inputTargetPrice.value = targetPrice.toFixed(2);
+        }
+      }
+
+      // 3. Risk-Based Position Sizing (Lots Calculator)
+      const accountEquity = Math.max(10000, this.currentCapital + (this.activePosition ? this.activePosition.pnl : 0));
+      const maxRiskRupees = Math.round(accountEquity * (this.selectedRiskPct / 100));
+      const pointsRisk = Math.max(0.5, Math.abs(spot - slPrice));
+      const pointsReward = Math.max(0.5, Math.abs(targetPrice - spot));
+      const riskPerLot = Math.round(pointsRisk * lot * 100) / 100;
+
+      let lots;
+      if (this.sizingMode === "risk") {
+        const autoLots = riskPerLot > 0 ? Math.max(1, Math.floor(maxRiskRupees / riskPerLot)) : 1;
+        const maxAffordable = marginPerLot > 0 ? Math.max(1, Math.floor(this.currentCapital / marginPerLot)) : 100;
+        lots = Math.max(1, Math.min(autoLots, maxAffordable));
+        this.selectedLots = lots;
+        this.dom.inputLots.value = lots;
+      } else {
+        lots = parseInt(this.selectedLots) || 1;
+      }
+
+      const totalQty = lots * lot;
+      const totalMargin = lots * marginPerLot;
+      const totalRisk = Math.round(pointsRisk * totalQty);
+      const totalReward = Math.round(pointsReward * totalQty);
+      const rr = totalRisk > 0 ? (totalReward / totalRisk).toFixed(1) : "2.0";
+
+      // 4. Update DOM Readouts
+      this.dom.riskAmountReadout.innerText = `₹ ${maxRiskRupees.toLocaleString("en-IN")} (${this.selectedRiskPct}%)`;
+      this.dom.calcMaxLoss.innerText = `₹ ${maxRiskRupees.toLocaleString("en-IN")}`;
+      this.dom.calcLotsResult.innerText = `${lots} Lots (${totalQty} Qty)`;
+      this.dom.calcRiskPerLot.innerText = `₹ ${riskPerLot.toLocaleString("en-IN")}`;
+      this.dom.totalQtyReadout.innerText = `${totalQty} Qty (${lots} Lots)`;
+      this.dom.rrRatio.innerText = `1 : ${rr}`;
+
+      this.dom.summaryPremium.innerText = `₹ ${spot.toFixed(2)}`;
+      this.dom.summaryTotalCost.innerText = `₹ ${totalMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      this.dom.summaryDelta.innerText = `${leverage} (1.00 Δ)`;
+
+      const actionVerb = isLong ? "BUY" : "SHORT";
+      this.dom.btnExecuteText.innerText = `${actionVerb} ${lots} LOTS ${this.session.symbol} FUT (Margin: ₹${totalMargin.toLocaleString("en-IN")})`;
+      this.dom.btnExecuteOrder.className = `btn-execute ${isLong ? "glow-call" : "glow-put"}`;
+
+      // 5. Visual Preview lines on chart
+      this.updatePreviewLines(targetPrice, slPrice);
+    }
+
+    updateOptionsOrderSummary() {
       if (!this.session) return;
 
       const spot = this.session.candles[this.currentBarIndex].close;
@@ -1460,6 +1683,101 @@
     // ORDER EXECUTION & POSITION SIMULATION
     // ========================================================================
     executeOrder() {
+      if (this.instrumentType === "futures") {
+        this.executeFuturesOrder();
+      } else {
+        this.executeOptionsOrder();
+      }
+    }
+
+    executeFuturesOrder() {
+      if (!this.session) return;
+      if (this.activePosition) {
+        alert("You already have an active open position! Square off or let it hit target/stop loss before placing another trade.");
+        return;
+      }
+
+      const candle = this.session.candles[this.currentBarIndex];
+      const spot = candle.close;
+      const lot = this.session.lot_size;
+      const isLong = this.selectedFutDirection === "LONG";
+      const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
+      const marginPerLot = Math.round(spot * lot * marginRate);
+      const lots = parseInt(this.selectedLots) || 1;
+      const totalQty = lots * lot;
+      const totalMargin = lots * marginPerLot;
+
+      if (totalMargin > this.currentCapital) {
+        alert(`Insufficient Capital for Futures Margin! Required Margin: ₹${totalMargin.toLocaleString("en-IN")}, Available Cash: ₹${this.currentCapital.toLocaleString("en-IN")}`);
+        return;
+      }
+
+      // Stop Loss & Target
+      let slPrice = this.customSLPrice != null
+        ? this.customSLPrice
+        : (isLong ? Math.round(spot * (1 - this.selectedFutSLPct / 100) * 100) / 100 : Math.round(spot * (1 + this.selectedFutSLPct / 100) * 100) / 100);
+
+      let targetPrice = this.customTargetPrice != null
+        ? this.customTargetPrice
+        : (isLong ? Math.round(spot * (1 + this.selectedFutTargetPct / 100) * 100) / 100 : Math.round(spot * (1 - this.selectedFutTargetPct / 100) * 100) / 100);
+
+      // Logical bounds check
+      if (isLong && slPrice >= spot) slPrice = Math.round(spot * 0.995 * 100) / 100;
+      if (!isLong && slPrice <= spot) slPrice = Math.round(spot * 1.005 * 100) / 100;
+      if (isLong && targetPrice <= spot) targetPrice = Math.round(spot * 1.01 * 100) / 100;
+      if (!isLong && targetPrice >= spot) targetPrice = Math.round(spot * 0.99 * 100) / 100;
+
+      const slPct = Math.round(Math.abs(spot - slPrice) / spot * 1000) / 10;
+      const targetPct = Math.round(Math.abs(targetPrice - spot) / spot * 1000) / 10;
+
+      // Deduct margin from available capital
+      this.currentCapital = Math.round((this.currentCapital - totalMargin) * 100) / 100;
+      this.clearPreviewLines();
+
+      this.activePosition = {
+        id: "TF-" + Date.now().toString(36),
+        instrumentType: "futures",
+        symbol: this.session.symbol,
+        strike: 0,
+        direction: this.selectedFutDirection, // 'LONG' or 'SHORT'
+        expiry: "monthly",
+        lots: lots,
+        lotSize: lot,
+        qty: totalQty,
+        entryPrice: spot,
+        currentPrice: spot,
+        slPrice: slPrice,
+        targetPrice: targetPrice,
+        initialSLPct: slPct,
+        initialTargetPct: targetPct,
+        totalCost: totalMargin,
+        marginBlocked: totalMargin,
+        entryBar: this.currentBarIndex,
+        entryTime: candle.time_str || "09:15",
+        entrySpot: spot,
+        pnl: 0,
+        roiPct: 0
+      };
+
+      this.audio.playOrderFilled();
+      this.drawPositionChartLines();
+      this.updateHUD();
+      this.saveState();
+
+      // Add Entry Marker on Chart
+      this.chartMarkers.push({
+        time: candle.time,
+        position: isLong ? "belowBar" : "aboveBar",
+        color: isLong ? "#10b981" : "#f43f5e",
+        shape: isLong ? "arrowUp" : "arrowDown",
+        text: `${isLong ? "BUY" : "SHORT"} ${this.session.symbol} FUT @ ₹${spot.toFixed(1)}`,
+      });
+      this.candleSeries.setMarkers(this.chartMarkers);
+
+      this.renderActivePositionDeck();
+    }
+
+    executeOptionsOrder() {
       if (!this.session) return;
       if (this.activePosition) {
         alert("You already have an active open position! Square off or let it hit target/stop loss before placing another bet.");
@@ -1505,6 +1823,7 @@
 
       this.activePosition = {
         id: "T-" + Date.now().toString(36),
+        instrumentType: "options",
         symbol: this.session.symbol,
         strike: this.selectedStrike,
         direction: this.selectedDirection,
@@ -1550,6 +1869,42 @@
       this.clearPriceLines();
       if (!this.activePosition) return;
 
+      const pos = this.activePosition;
+
+      // FUTURES POSITION CHART LINES (Direct Spot Pricing)
+      if (pos.instrumentType === "futures") {
+        const entryLine = this.candleSeries.createPriceLine({
+          price: pos.entryPrice,
+          color: "#38bdf8",
+          lineWidth: 1.5,
+          lineStyle: 0, // Solid
+          axisLabelVisible: true,
+          title: `ENTRY: ${pos.symbol} FUT ${pos.direction} (₹${pos.entryPrice.toFixed(1)})`,
+        });
+
+        const targetLine = this.candleSeries.createPriceLine({
+          price: pos.targetPrice,
+          color: "#10b981",
+          lineWidth: 1.5,
+          lineStyle: 2, // Dashed
+          axisLabelVisible: true,
+          title: `TARGET (₹${pos.targetPrice.toFixed(1)})`,
+        });
+
+        const slLine = this.candleSeries.createPriceLine({
+          price: pos.slPrice,
+          color: "#f43f5e",
+          lineWidth: 1.5,
+          lineStyle: 2, // Dashed
+          axisLabelVisible: true,
+          title: `STOP LOSS (₹${pos.slPrice.toFixed(1)})`,
+        });
+
+        this.activePriceLines = [entryLine, targetLine, slLine];
+        return;
+      }
+
+      // OPTIONS POSITION CHART LINES (Spot Translation)
       const spot = this.activePosition.entrySpot;
       const isCall = this.activePosition.direction === "CE";
       const delta = Math.abs(0.5); // delta translation to underlying spot points
@@ -1947,6 +2302,17 @@
 
     applyChartPickedSL(clickedSpotPrice) {
       if (!this.session) return;
+
+      if (this.instrumentType === "futures") {
+        this.customSLPrice = Math.round(clickedSpotPrice * 100) / 100;
+        this.dom.inputSLPrice.value = this.customSLPrice.toFixed(2);
+        document.querySelectorAll(".preset-chip[data-sl]").forEach(b => b.classList.remove("active"));
+        this.cancelChartAction();
+        this.updateOrderSummary();
+        this.audio.playClick();
+        return;
+      }
+
       const spot = this.session.candles[this.currentBarIndex].close;
       const T = OptionsEngine.calculateTimeToExpiry(this.currentBarIndex, this.session.total_bars, this.selectedExpiry);
       const iv = this.session.default_iv || 0.16;
@@ -1978,6 +2344,17 @@
 
     applyChartPickedTarget(clickedSpotPrice) {
       if (!this.session) return;
+
+      if (this.instrumentType === "futures") {
+        this.customTargetPrice = Math.round(clickedSpotPrice * 100) / 100;
+        this.dom.inputTargetPrice.value = this.customTargetPrice.toFixed(2);
+        document.querySelectorAll(".preset-chip[data-target]").forEach(b => b.classList.remove("active"));
+        this.cancelChartAction();
+        this.updateOrderSummary();
+        this.audio.playClick();
+        return;
+      }
+
       const spot = this.session.candles[this.currentBarIndex].close;
       const T = OptionsEngine.calculateTimeToExpiry(this.currentBarIndex, this.session.total_bars, this.selectedExpiry);
       const iv = this.session.default_iv || 0.16;
@@ -2006,6 +2383,44 @@
       if (!this.activePosition) return;
 
       const pos = this.activePosition;
+
+      // FUTURES INTRA-BAR EVALUATION
+      if (pos.instrumentType === "futures") {
+        pos.currentPrice = candle.close;
+        const isLong = pos.direction === "LONG";
+
+        // 1. Check Target Hit
+        if ((isLong && candle.high >= pos.targetPrice) || (!isLong && candle.low <= pos.targetPrice)) {
+          this.closePosition(pos.targetPrice, "TARGET_HIT", candle);
+          return;
+        }
+
+        // 2. Check Stop Loss Hit
+        if ((isLong && candle.low <= pos.slPrice) || (!isLong && candle.high >= pos.slPrice)) {
+          this.closePosition(pos.slPrice, "STOP_LOSS_HIT", candle);
+          return;
+        }
+
+        // 3. EOD Auto Square-off at 15:25
+        if (this.currentBarIndex >= this.session.total_bars - 1) {
+          this.closePosition(candle.close, "EOD_SQUAREOFF", candle);
+          return;
+        }
+
+        // Live MTM PnL
+        pos.pnl = isLong
+          ? Math.round((pos.currentPrice - pos.entryPrice) * pos.qty * 100) / 100
+          : Math.round((pos.entryPrice - pos.currentPrice) * pos.qty * 100) / 100;
+        pos.roiPct = pos.marginBlocked > 0
+          ? Math.round((pos.pnl / pos.marginBlocked) * 1000) / 10
+          : 0;
+
+        this.renderActivePositionDeck();
+        this.updateHUD();
+        return;
+      }
+
+      // OPTIONS INTRA-BAR EVALUATION
       const iv = this.session.default_iv || 0.16;
       const T = OptionsEngine.calculateTimeToExpiry(this.currentBarIndex, this.session.total_bars, pos.expiry);
 
@@ -2047,11 +2462,18 @@
       }
 
       const pos = this.activePosition;
+      const isFutures = pos.instrumentType === "futures";
       this.dom.positionDeck.classList.remove("hidden");
       this.dom.tradeChartOverlay.classList.remove("hidden");
 
       // Badge
-      this.dom.posSymbolTag.innerText = `${pos.symbol} ${pos.strike} ${pos.direction} [${pos.expiry.toUpperCase()}]`;
+      if (isFutures) {
+        this.dom.posSymbolTag.innerText = `${pos.symbol} FUT [${pos.direction}]`;
+        this.dom.posCapitalDeployed.innerText = `Margin: ₹${pos.marginBlocked.toLocaleString("en-IN")}`;
+      } else {
+        this.dom.posSymbolTag.innerText = `${pos.symbol} ${pos.strike} ${pos.direction} [${pos.expiry.toUpperCase()}]`;
+        this.dom.posCapitalDeployed.innerText = `Capital: ₹${pos.totalCost.toLocaleString("en-IN")}`;
+      }
 
       // Live PnL
       const sign = pos.pnl >= 0 ? "+" : "";
@@ -2060,20 +2482,29 @@
 
       this.dom.posLiveRoi.innerText = `${sign}${pos.roiPct.toFixed(1)}%`;
       this.dom.posLiveRoi.className = `roi-tag ${pos.pnl >= 0 ? "positive" : "negative"}`;
-      this.dom.posCapitalDeployed.innerText = `Capital: ₹${pos.totalCost.toLocaleString("en-IN")}`;
 
       // Progress Track between SL and Target
       this.dom.posSlVal.innerText = `SL: ₹${pos.slPrice.toFixed(2)}`;
       this.dom.posCurVal.innerText = `LTP: ₹${pos.currentPrice.toFixed(2)}`;
       this.dom.posTgVal.innerText = `Target: ₹${pos.targetPrice.toFixed(2)}`;
 
-      const totalRange = pos.targetPrice - pos.slPrice;
-      let pct = totalRange > 0 ? ((pos.currentPrice - pos.slPrice) / totalRange) * 100 : 50;
+      const isShort = isFutures && pos.direction === "SHORT";
+      let pct;
+      if (isShort) {
+        const totalRange = pos.slPrice - pos.targetPrice;
+        pct = totalRange > 0 ? ((pos.slPrice - pos.currentPrice) / totalRange) * 100 : 50;
+      } else {
+        const totalRange = pos.targetPrice - pos.slPrice;
+        pct = totalRange > 0 ? ((pos.currentPrice - pos.slPrice) / totalRange) * 100 : 50;
+      }
       pct = Math.max(0, Math.min(100, pct));
       this.dom.meterMarker.style.left = `${pct}%`;
 
       // Chart Overlay pill
-      document.getElementById("overlay-strike-badge").innerText = `${pos.strike} ${pos.direction}`;
+      const overlayBadge = document.getElementById("overlay-strike-badge");
+      if (overlayBadge) {
+        overlayBadge.innerText = isFutures ? `${pos.symbol} FUT ${pos.direction}` : `${pos.strike} ${pos.direction}`;
+      }
       document.getElementById("overlay-qty").innerText = `${pos.qty} Qty`;
       document.getElementById("overlay-entry").innerText = `Entry: ₹${pos.entryPrice.toFixed(2)}`;
       document.getElementById("overlay-cur").innerText = `LTP: ₹${pos.currentPrice.toFixed(2)}`;
@@ -2085,12 +2516,29 @@
       if (!this.activePosition) return;
 
       const pos = this.activePosition;
+      const isFutures = pos.instrumentType === "futures";
       const actualExit = Math.max(0.05, Math.round(exitPrice * 100) / 100);
-      const finalPnl = Math.round((actualExit - pos.entryPrice) * pos.qty * 100) / 100;
-      const finalRoi = Math.round(((actualExit - pos.entryPrice) / pos.entryPrice) * 1000) / 10;
+
+      let finalPnl;
+      let finalRoi;
+      let returnedFunds;
+
+      if (isFutures) {
+        const isLong = pos.direction === "LONG";
+        finalPnl = isLong
+          ? Math.round((actualExit - pos.entryPrice) * pos.qty * 100) / 100
+          : Math.round((pos.entryPrice - actualExit) * pos.qty * 100) / 100;
+        finalRoi = pos.marginBlocked > 0
+          ? Math.round((finalPnl / pos.marginBlocked) * 1000) / 10
+          : 0;
+        returnedFunds = Math.round((pos.marginBlocked + finalPnl) * 100) / 100;
+      } else {
+        finalPnl = Math.round((actualExit - pos.entryPrice) * pos.qty * 100) / 100;
+        finalRoi = Math.round(((actualExit - pos.entryPrice) / pos.entryPrice) * 1000) / 10;
+        returnedFunds = Math.round(actualExit * pos.qty * 100) / 100;
+      }
 
       // Update balances
-      const returnedFunds = Math.round(actualExit * pos.qty * 100) / 100;
       this.currentCapital = Math.round((this.currentCapital + returnedFunds) * 100) / 100;
       this.dayPnL = Math.round((this.dayPnL + finalPnl) * 100) / 100;
       this.totalTrades++;
@@ -2124,11 +2572,11 @@
       const tradeRecord = {
         id: pos.id,
         time: `${pos.entryTime} → ${candle ? (candle.time_str || "15:30") : "Exit"}`,
-        symbol: `${pos.symbol} ${pos.strike}`,
-        type: pos.direction,
+        symbol: isFutures ? `${pos.symbol} FUT` : `${pos.symbol} ${pos.strike}`,
+        type: isFutures ? (pos.direction === "LONG" ? "FUT_LONG" : "FUT_SHORT") : pos.direction,
         qty: pos.qty,
-        buyPrice: pos.entryPrice,
-        sellPrice: actualExit,
+        buyPrice: isFutures ? (pos.direction === "LONG" ? pos.entryPrice : actualExit) : pos.entryPrice,
+        sellPrice: isFutures ? (pos.direction === "LONG" ? actualExit : pos.entryPrice) : actualExit,
         reason: reason,
         pnl: finalPnl,
         roi: finalRoi
@@ -2156,9 +2604,10 @@
           body: JSON.stringify({
             trade_id: trade.id,
             symbol: pos.symbol,
-            strike: pos.strike,
+            instrument_type: pos.instrumentType || "options",
+            strike: pos.strike || 0,
             option_type: pos.direction,
-            expiry_type: pos.expiry,
+            expiry_type: pos.expiry || "monthly",
             lot_size: pos.lotSize,
             lots: pos.lots,
             quantity: pos.qty,
@@ -2190,8 +2639,18 @@
 
     trailSL() {
       if (!this.activePosition) return;
-      const step = (this.activePosition.entryPrice * 0.1);
-      this.activePosition.slPrice = Math.round((this.activePosition.slPrice + step) * 100) / 100;
+      const pos = this.activePosition;
+      if (pos.instrumentType === "futures") {
+        const step = Math.max(1, Math.round(pos.entryPrice * 0.002)); // ~0.2%
+        if (pos.direction === "LONG") {
+          pos.slPrice = Math.min(pos.currentPrice - 2, pos.slPrice + step);
+        } else {
+          pos.slPrice = Math.max(pos.currentPrice + 2, pos.slPrice - step);
+        }
+      } else {
+        const step = (pos.entryPrice * 0.1);
+        pos.slPrice = Math.round((pos.slPrice + step) * 100) / 100;
+      }
       this.audio.playClick();
       this.drawPositionChartLines();
       this.renderActivePositionDeck();
@@ -2416,6 +2875,22 @@
         });
       });
 
+      // Instrument Type Switcher (Options vs Futures)
+      if (this.dom.btnInstOptions) {
+        this.dom.btnInstOptions.addEventListener("click", () => this.switchInstrumentType("options"));
+      }
+      if (this.dom.btnInstFutures) {
+        this.dom.btnInstFutures.addEventListener("click", () => this.switchInstrumentType("futures"));
+      }
+
+      // Futures Direction Bias (Long vs Short)
+      if (this.dom.btnFutLong) {
+        this.dom.btnFutLong.addEventListener("click", () => this.setFuturesDirection("LONG"));
+      }
+      if (this.dom.btnFutShort) {
+        this.dom.btnFutShort.addEventListener("click", () => this.setFuturesDirection("SHORT"));
+      }
+
       // Expiry selector
       document.querySelectorAll(".expiry-selector .segment-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -2583,6 +3058,22 @@
         this.dom.btnSizingRisk.classList.remove("active");
         this.dom.boxManualLots.classList.remove("hidden");
         this.dom.boxRiskSizing.classList.add("hidden");
+
+        if (this.instrumentType === "futures") {
+          const candle = this.session.candles[this.currentBarIndex];
+          const spot = candle.close;
+          const lot = this.session.lot_size;
+          const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
+          const marginPerLot = Math.round(spot * lot * marginRate);
+          const maxLots = marginPerLot > 0 ? Math.max(1, Math.floor(this.currentCapital / marginPerLot)) : 10;
+          this.selectedLots = Math.min(100, maxLots);
+          this.dom.inputLots.value = this.selectedLots;
+          this.dom.btnLotMax.classList.add("active");
+          this.audio.playClick();
+          this.updateOrderSummary();
+          return;
+        }
+
         const candle = this.session.candles[this.currentBarIndex];
         const opt = OptionsEngine.price(candle.close, this.selectedStrike, 0.01, 0.07, 0.16, this.selectedDirection);
         const costPerLot = opt.price * this.session.lot_size;
@@ -2610,7 +3101,11 @@
           document.querySelectorAll(".preset-chip[data-sl]").forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           this.customSLPrice = null;
-          this.selectedSLPct = parseInt(btn.getAttribute("data-sl"));
+          if (this.instrumentType === "futures") {
+            this.selectedFutSLPct = parseFloat(btn.getAttribute("data-sl"));
+          } else {
+            this.selectedSLPct = parseFloat(btn.getAttribute("data-sl"));
+          }
           this.audio.playClick();
           this.updateOrderSummary();
         });
@@ -2620,6 +3115,13 @@
         const val = parseFloat(e.target.value);
         if (!isNaN(val) && val > 0) {
           if (!this.session) return;
+          if (this.instrumentType === "futures") {
+            this.customSLPrice = val;
+            document.querySelectorAll(".preset-chip[data-sl]").forEach(b => b.classList.remove("active"));
+            this.updateOrderSummary();
+            return;
+          }
+
           const spot = this.session.candles[this.currentBarIndex].close;
           const T = OptionsEngine.calculateTimeToExpiry(this.currentBarIndex, this.session.total_bars, this.selectedExpiry);
           const iv = this.session.default_iv || 0.16;
@@ -2649,7 +3151,11 @@
           document.querySelectorAll(".preset-chip[data-target]").forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           this.customTargetPrice = null;
-          this.selectedTargetPct = parseInt(btn.getAttribute("data-target"));
+          if (this.instrumentType === "futures") {
+            this.selectedFutTargetPct = parseFloat(btn.getAttribute("data-target"));
+          } else {
+            this.selectedTargetPct = parseFloat(btn.getAttribute("data-target"));
+          }
           this.audio.playClick();
           this.updateOrderSummary();
         });
@@ -2659,6 +3165,13 @@
         const val = parseFloat(e.target.value);
         if (!isNaN(val) && val > 0) {
           if (!this.session) return;
+          if (this.instrumentType === "futures") {
+            this.customTargetPrice = val;
+            document.querySelectorAll(".preset-chip[data-target]").forEach(b => b.classList.remove("active"));
+            this.updateOrderSummary();
+            return;
+          }
+
           const spot = this.session.candles[this.currentBarIndex].close;
           const T = OptionsEngine.calculateTimeToExpiry(this.currentBarIndex, this.session.total_bars, this.selectedExpiry);
           const iv = this.session.default_iv || 0.16;

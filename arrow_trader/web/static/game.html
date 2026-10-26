@@ -318,64 +318,119 @@
         </div>
       </div>
 
-      <!-- OPTIONS ORDER DESK -->
+      <!-- DERIVATIVES ORDER DESK (OPTIONS & FUTURES) -->
       <div class="order-desk-panel">
         <div class="panel-header">
           <div class="header-title-box">
-            <h2 class="panel-title">OPTIONS ORDER DESK</h2>
-            <p class="panel-subtitle">Black-Scholes Simulated Live Greeks</p>
+            <h2 class="panel-title" id="desk-title">OPTIONS ORDER DESK</h2>
+            <p class="panel-subtitle" id="desk-subtitle">Black-Scholes Simulated Live Greeks</p>
           </div>
           <div class="lot-size-badge" id="badge-lot-size">
             Lot: <b>25 Qty</b>
           </div>
         </div>
 
-        <!-- EXPIRY SELECTION -->
-        <div class="form-group">
-          <label class="form-label">EXPIRY CONTRACT</label>
-          <div class="segmented-control expiry-selector">
-            <button class="segment-btn active" data-expiry="weekly">
-              <span>Weekly</span>
-              <span class="decay-chip">High Theta</span>
+        <!-- INSTRUMENT TYPE TOGGLE: OPTIONS vs FUTURES -->
+        <div class="form-group mb-3">
+          <div class="segmented-control instrument-type-selector">
+            <button id="btn-inst-options" class="segment-btn active" data-inst="options">
+              <span>⚡ Options Desk</span>
             </button>
-            <button class="segment-btn" data-expiry="next_weekly">
-              <span>Next Weekly</span>
-              <span class="decay-chip">Medium</span>
-            </button>
-            <button class="segment-btn" data-expiry="monthly">
-              <span>Monthly</span>
-              <span class="decay-chip">Low Theta</span>
+            <button id="btn-inst-futures" class="segment-btn" data-inst="futures">
+              <span>📈 Futures Desk</span>
             </button>
           </div>
         </div>
 
-        <!-- CALL / PUT DIRECTION BIAS -->
-        <div class="form-group">
-          <label class="form-label">DIRECTION / OPTION TYPE</label>
-          <div class="direction-toggle">
-            <button id="btn-opt-call" class="dir-btn active call glow-green" data-type="CE">
-              <span class="dir-icon">↗️</span>
-              <span class="dir-title">BUY CALL (CE)</span>
-              <span class="dir-desc">Bullish Bet</span>
-            </button>
-            <button id="btn-opt-put" class="dir-btn put" data-type="PE">
-              <span class="dir-icon">↘️</span>
-              <span class="dir-title">BUY PUT (PE)</span>
-              <span class="dir-desc">Bearish Bet</span>
-            </button>
+        <!-- OPTIONS-SPECIFIC CONTROLS -->
+        <div id="options-specific-controls">
+          <!-- EXPIRY SELECTION -->
+          <div class="form-group">
+            <label class="form-label">EXPIRY CONTRACT</label>
+            <div class="segmented-control expiry-selector">
+              <button class="segment-btn active" data-expiry="weekly">
+                <span>Weekly</span>
+                <span class="decay-chip">High Theta</span>
+              </button>
+              <button class="segment-btn" data-expiry="next_weekly">
+                <span>Next Weekly</span>
+                <span class="decay-chip">Medium</span>
+              </button>
+              <button class="segment-btn" data-expiry="monthly">
+                <span>Monthly</span>
+                <span class="decay-chip">Low Theta</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CALL / PUT DIRECTION BIAS -->
+          <div class="form-group">
+            <label class="form-label">DIRECTION / OPTION TYPE</label>
+            <div class="direction-toggle">
+              <button id="btn-opt-call" class="dir-btn active call glow-green" data-type="CE">
+                <span class="dir-icon">↗️</span>
+                <span class="dir-title">BUY CALL (CE)</span>
+                <span class="dir-desc">Bullish Bet</span>
+              </button>
+              <button id="btn-opt-put" class="dir-btn put" data-type="PE">
+                <span class="dir-icon">↘️</span>
+                <span class="dir-title">BUY PUT (PE)</span>
+                <span class="dir-desc">Bearish Bet</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- STRIKE MATRIX LADDER -->
+          <div class="form-group">
+            <div class="label-with-meta">
+              <label class="form-label">SELECT STRIKE PRICE</label>
+              <span class="meta-tag font-mono" id="strike-step-label">Step: 50 pts</span>
+            </div>
+
+            <div class="strike-matrix-table" id="strike-matrix-table">
+              <!-- Dynamically populated via JS -->
+              <div class="table-loading">Generating Strike Ladder...</div>
+            </div>
           </div>
         </div>
 
-        <!-- STRIKE MATRIX LADDER -->
-        <div class="form-group">
-          <div class="label-with-meta">
-            <label class="form-label">SELECT STRIKE PRICE</label>
-            <span class="meta-tag font-mono" id="strike-step-label">Step: 50 pts</span>
+        <!-- FUTURES-SPECIFIC CONTROLS -->
+        <div id="futures-specific-controls" class="hidden">
+          <!-- DIRECTION BIAS -->
+          <div class="form-group">
+            <label class="form-label">FUTURES DIRECTION</label>
+            <div class="direction-toggle">
+              <button id="btn-fut-long" class="dir-btn active call glow-green" data-fut-dir="LONG">
+                <span class="dir-icon">📈</span>
+                <span class="dir-title">LONG FUT (BUY)</span>
+                <span class="dir-desc">Bullish • Profit on Rally</span>
+              </button>
+              <button id="btn-fut-short" class="dir-btn put" data-fut-dir="SHORT">
+                <span class="dir-icon">📉</span>
+                <span class="dir-title">SHORT FUT (SELL)</span>
+                <span class="dir-desc">Bearish • Profit on Fall</span>
+              </button>
+            </div>
           </div>
 
-          <div class="strike-matrix-table" id="strike-matrix-table">
-            <!-- Dynamically populated via JS -->
-            <div class="table-loading">Generating Strike Ladder...</div>
+          <!-- FUTURES CONTRACT CARD -->
+          <div class="fut-contract-card font-mono">
+            <div class="fut-card-row">
+              <span class="fut-card-label">CONTRACT</span>
+              <span class="fut-card-val" id="fut-contract-name">NIFTY 50 FUT</span>
+            </div>
+            <div class="fut-card-row">
+              <span class="fut-card-label">FUTURE LTP</span>
+              <span class="fut-card-val highlight" id="fut-ltp">₹ 24,500.00</span>
+            </div>
+            <div class="fut-card-row">
+              <span class="fut-card-label">MARGIN / LOT (~12.5%)</span>
+              <span class="fut-card-val font-accent" id="fut-margin-per-lot">₹ 76,500.00</span>
+            </div>
+            <div class="fut-card-row">
+              <span class="fut-card-label">NOTIONAL VAL / LOT</span>
+              <span class="fut-card-val" id="fut-notional-val">₹ 6,12,500.00</span>
+            </div>
           </div>
         </div>
 
@@ -491,15 +546,15 @@
         <!-- ORDER SUMMARY & CAPITAL CHECK -->
         <div class="order-summary-row">
           <div class="summary-item">
-            <span class="summary-label">PREMIUM</span>
+            <span class="summary-label" id="summary-price-label">PREMIUM</span>
             <span class="summary-val font-mono" id="summary-premium">₹ 145.20</span>
           </div>
           <div class="summary-item">
-            <span class="summary-label">TOTAL CAPITAL</span>
+            <span class="summary-label" id="summary-capital-label">TOTAL CAPITAL</span>
             <span class="summary-val font-mono" id="summary-total-cost">₹ 7,260.00</span>
           </div>
           <div class="summary-item">
-            <span class="summary-label">EST. DELTA</span>
+            <span class="summary-label" id="summary-delta-label">EST. DELTA</span>
             <span class="summary-val font-mono" id="summary-delta">0.52 Δ</span>
           </div>
         </div>
