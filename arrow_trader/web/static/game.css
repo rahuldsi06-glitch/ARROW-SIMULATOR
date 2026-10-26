@@ -153,6 +153,26 @@ body.theme-obsidian {
   display: inline-flex;
   border: 1px solid var(--border-subtle);
 }
+
+/* Market Switcher: India vs US Prop Firm */
+.market-selector {
+  background: rgba(10, 15, 29, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+  padding: 3px;
+}
+.market-selector .segment-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 11px;
+  gap: 5px;
+}
+.market-selector .segment-btn.active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(99, 102, 241, 0.3));
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
 .segment-btn {
   background: transparent;
   border: none;

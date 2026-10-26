@@ -17,6 +17,7 @@ from arrow_trader.game.instruments import (
     INSTRUMENTS,
     INDEX_SYMBOLS,
     STOCK_SYMBOLS,
+    US_FUTURES_SYMBOLS,
     get_instrument_config
 )
 from arrow_trader.game.simulator_service import SimulatorService
@@ -321,6 +322,98 @@ class TestFastAPIRoutes(unittest.TestCase):
         data_short = res_short.json()
         self.assertEqual(data_short["new_balance"], 1004300.0)
         self.assertEqual(data_short["state"]["trades_count"], 2)
+
+    def test_us_futures_config_and_instruments(self):
+        # 1. Verify MES (Micro S&P 500)
+        mes = get_instrument_config("MES")
+        self.assertEqual(mes["symbol"], "MES")
+        self.assertEqual(mes["market"], "US")
+        self.assertEqual(mes["currency"], "USD")
+        self.assertEqual(mes["currency_symbol"], "$")
+        self.assertEqual(mes["point_value"], 5.0)
+        self.assertEqual(mes["tick_size"], 0.25)
+        self.assertEqual(mes["margin_per_contract"], 50.0)
+
+        # 2. Verify MNQ (Micro Nasdaq-100)
+        mnq = get_instrument_config("MNQ")
+        self.assertEqual(mnq["symbol"], "MNQ")
+        self.assertEqual(mnq["point_value"], 2.0)
+        self.assertEqual(mnq["tick_size"], 0.25)
+        self.assertEqual(mnq["margin_per_contract"], 50.0)
+
+        # 3. Verify ES & NQ minis
+        es = get_instrument_config("ES")
+        nq = get_instrument_config("NQ")
+        self.assertEqual(es["point_value"], 50.0)
+        self.assertEqual(nq["point_value"], 20.0)
+
+    def test_us_futures_session_creation(self):
+        # Create session in US mode
+        res = self.client.post("/api/game/session", json={
+            "mode": "us_futures",
+            "market": "US",
+            "symbol": "MES"
+        })
+        self.assertEqual(res.status_code, 200)
+        sess = res.json()["session"]
+        self.assertEqual(sess["symbol"], "MES")
+        self.assertEqual(sess["market"], "US")
+        self.assertEqual(sess["currency"], "USD")
+        self.assertEqual(sess["currency_symbol"], "$")
+        self.assertEqual(sess["point_value"], 5.0)
+        self.assertEqual(sess["margin_per_contract"], 50.0)
+        self.assertEqual(sess["total_bars"], 75)
+        self.assertGreater(len(sess["candles"]), 0)
+
+        # Verify initial candle has correct tick rounding (0.25)
+        first_candle = sess["initial_candle"]
+        remainder = round((first_candle["close"] * 100) % 25, 2)
+        self.assertIn(remainder, [0.0, 25.0])
+
+    def test_us_futures_trade_recording_and_usd_balances(self):
+        # 1. Reset US account balance to $50,000
+        reset_res = self.client.post("/api/game/reset-account", json={
+            "starting_balance": 50000.0,
+            "market": "US",
+            "currency": "USD"
+        })
+        self.assertEqual(reset_res.status_code, 200)
+        state = reset_res.json()["state"]
+        self.assertEqual(state["usd_starting_balance"], 50000.0)
+        self.assertEqual(state["usd_current_balance"], 50000.0)
+
+        # 2. Record Long MES trade: Buy 2 contracts @ 5860.00, Sell @ 5870.00 (+10 pts)
+        # PnL = 10 pts * $5/pt * 2 contracts = $100.00
+        mes_trade = {
+            "trade_id": "US-FUT-001",
+            "symbol": "MES",
+            "market": "US",
+            "currency": "USD",
+            "instrument_type": "futures",
+            "strike": 0.0,
+            "option_type": "FUT_LONG",
+            "expiry_type": "monthly",
+            "lot_size": 1,
+            "lots": 2,
+            "quantity": 2,
+            "entry_bar": 10,
+            "exit_bar": 20,
+            "entry_time": "10:20",
+            "exit_time": "11:10",
+            "entry_price": 5860.0,
+            "exit_price": 5870.0,
+            "target_price": 5870.0,
+            "stop_loss_price": 5855.0,
+            "pnl": 100.0,
+            "pnl_pct": 100.0,  # $100 profit on $100 day margin
+            "exit_reason": "TARGET_HIT"
+        }
+        trade_res = self.client.post("/api/game/trade", json=mes_trade)
+        self.assertEqual(trade_res.status_code, 200)
+        trade_data = trade_res.json()
+        self.assertEqual(trade_data["currency"], "USD")
+        self.assertEqual(trade_data["new_balance"], 50100.0)
+        self.assertEqual(trade_data["state"]["usd_current_balance"], 50100.0)
 
 
 if __name__ == "__main__":

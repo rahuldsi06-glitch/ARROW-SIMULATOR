@@ -240,6 +240,80 @@ INSTRUMENTS: Dict[str, Dict[str, Any]] = {
         "description": "Premier Private Banking & Financial Services Leader",
         "badge": "FNO LARGE CAP",
     },
+
+    # US CME FUTURES (PROP FIRM PRACTICE)
+    "MES": {
+        "symbol": "MES",
+        "display_name": "Micro E-mini S&P 500",
+        "type": "us_futures",
+        "market": "US",
+        "exchange": "CME",
+        "token": "MES",
+        "lot_size": 1,
+        "point_value": 5.0,  # $5 per index point
+        "tick_size": 0.25,   # $1.25 per tick (0.25 pt)
+        "strike_step": 10,
+        "default_iv": 0.15,
+        "margin_per_contract": 50.0,  # $50 Day Trading Prop Firm Margin
+        "currency": "USD",
+        "currency_symbol": "$",
+        "description": "CME Micro E-mini S&P 500 Index Futures ($5 per point)",
+        "badge": "CME MICRO",
+    },
+    "MNQ": {
+        "symbol": "MNQ",
+        "display_name": "Micro E-mini Nasdaq-100",
+        "type": "us_futures",
+        "market": "US",
+        "exchange": "CME",
+        "token": "MNQ",
+        "lot_size": 1,
+        "point_value": 2.0,  # $2 per index point
+        "tick_size": 0.25,   # $0.50 per tick (0.25 pt)
+        "strike_step": 25,
+        "default_iv": 0.18,
+        "margin_per_contract": 50.0,  # $50 Day Trading Prop Firm Margin
+        "currency": "USD",
+        "currency_symbol": "$",
+        "description": "CME Micro E-mini Nasdaq-100 Futures ($2 per point)",
+        "badge": "CME MICRO",
+    },
+    "ES": {
+        "symbol": "ES",
+        "display_name": "E-mini S&P 500",
+        "type": "us_futures",
+        "market": "US",
+        "exchange": "CME",
+        "token": "ES",
+        "lot_size": 1,
+        "point_value": 50.0,  # $50 per index point
+        "tick_size": 0.25,    # $12.50 per tick
+        "strike_step": 10,
+        "default_iv": 0.15,
+        "margin_per_contract": 500.0,  # $500 Day Margin
+        "currency": "USD",
+        "currency_symbol": "$",
+        "description": "CME E-mini S&P 500 Index Futures ($50 per point)",
+        "badge": "CME MINI",
+    },
+    "NQ": {
+        "symbol": "NQ",
+        "display_name": "E-mini Nasdaq-100",
+        "type": "us_futures",
+        "market": "US",
+        "exchange": "CME",
+        "token": "NQ",
+        "lot_size": 1,
+        "point_value": 20.0,  # $20 per index point
+        "tick_size": 0.25,    # $5.00 per tick
+        "strike_step": 25,
+        "default_iv": 0.18,
+        "margin_per_contract": 500.0,  # $500 Day Margin
+        "currency": "USD",
+        "currency_symbol": "$",
+        "description": "CME E-mini Nasdaq-100 Futures ($20 per point)",
+        "badge": "CME MINI",
+    },
 }
 
 INDEX_SYMBOLS: List[str] = ["NIFTY", "SENSEX", "BANKNIFTY"]
@@ -248,6 +322,7 @@ STOCK_SYMBOLS: List[str] = [
     "SBIN", "BHARTIARTL", "LT", "ITC", "BAJFINANCE",
     "AXISBANK", "MARUTI", "TITAN", "SUNPHARMA", "KOTAKBANK"
 ]
+US_FUTURES_SYMBOLS: List[str] = ["MES", "MNQ", "ES", "NQ"]
 
 
 def get_instrument_config(symbol: str) -> Dict[str, Any]:

@@ -255,7 +255,12 @@
       this.timerId = null;
       this.blindMode = false;
 
-      // Account state (Default 10 Lakhs Pro Account)
+      // Multi-Market & Account state (India ₹10L vs US Prop Firm $50k)
+      this.currentMarket = "IN"; // 'IN' or 'US'
+      this.inrStartingCapital = 1000000.0;
+      this.inrCurrentCapital = 1000000.0;
+      this.usdStartingCapital = 50000.0;
+      this.usdCurrentCapital = 50000.0;
       this.startingCapital = 1000000.0;
       this.currentCapital = 1000000.0;
       this.dayStartCapital = 1000000.0;
@@ -330,6 +335,24 @@
       this.init();
     }
 
+    formatCurrency(val, includeSymbol = true, decimals = 2) {
+      const num = typeof val === "number" && !isNaN(val) ? val : 0;
+      const isUS = this.currentMarket === "US" || (this.session && this.session.market === "US");
+      const sym = isUS ? "$" : "₹";
+      const loc = isUS ? "en-US" : "en-IN";
+      const formatted = Math.abs(num).toLocaleString(loc, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+      const prefix = num < 0 ? "-" : "";
+      if (!includeSymbol) return `${prefix}${formatted}`;
+      return `${prefix}${sym} ${formatted}`;
+    }
+
+    formatCurrencyInt(val, includeSymbol = true) {
+      return this.formatCurrency(Math.round(val), includeSymbol, 0);
+    }
+
     async init() {
       this.loadFibSettings();
       this.cacheDomElements();
@@ -337,10 +360,22 @@
       this.bindEvents();
       this.loadSavedState();
       await this.loadConfig();
-      await this.startNewSession();
+      this.syncMarketUI();
+      await this.startNewSession(this.currentMarket === "US" ? "MES" : this.currentSymbol);
     }
 
     cacheDomElements() {
+      // Market Selector & Presets
+      this.dom.btnMarketIn = document.getElementById("btn-market-in");
+      this.dom.btnMarketUs = document.getElementById("btn-market-us");
+      this.dom.modeSelectorIn = document.getElementById("mode-selector-in");
+      this.dom.usFuturesPills = document.getElementById("us-futures-pills");
+      this.dom.capitalPresetsIn = document.getElementById("capital-presets-in");
+      this.dom.capitalPresetsUs = document.getElementById("capital-presets-us");
+      this.dom.customCapLabel = document.getElementById("custom-cap-label");
+      this.dom.futMarginLabel = document.getElementById("fut-margin-label");
+      this.dom.futNotionalLabel = document.getElementById("fut-notional-label");
+
       // Header & Navigation
       this.dom.btnModeIndex = document.getElementById("btn-mode-index");
       this.dom.btnModeStock = document.getElementById("btn-mode-stock");
@@ -511,19 +546,130 @@
       this.dom.fibOptLabels = document.getElementById("fib-opt-labels");
     }
 
+    syncMarketUI() {
+      const isUS = this.currentMarket === "US";
+      if (this.dom.btnMarketIn) this.dom.btnMarketIn.classList.toggle("active", !isUS);
+      if (this.dom.btnMarketUs) this.dom.btnMarketUs.classList.toggle("active", isUS);
+
+      if (isUS) {
+        if (this.dom.modeSelectorIn) this.dom.modeSelectorIn.classList.add("hidden");
+        if (this.dom.indexPills) this.dom.indexPills.classList.add("hidden");
+        if (this.dom.stockSelectWrapper) this.dom.stockSelectWrapper.classList.add("hidden");
+        if (this.dom.usFuturesPills) this.dom.usFuturesPills.classList.remove("hidden");
+        if (this.dom.capitalPresetsIn) this.dom.capitalPresetsIn.classList.add("hidden");
+        if (this.dom.capitalPresetsUs) this.dom.capitalPresetsUs.classList.remove("hidden");
+        if (this.dom.customCapLabel) this.dom.customCapLabel.innerText = "Or Enter Custom Capital ($):";
+        if (this.dom.inputCustomCapital) this.dom.inputCustomCapital.value = this.currentCapital;
+        if (this.dom.futMarginLabel) this.dom.futMarginLabel.innerText = "PROP DAY MARGIN / CONTRACT";
+        if (this.dom.futNotionalLabel) this.dom.futNotionalLabel.innerText = "POINT VALUE / MULTIPLIER";
+        if (this.dom.btnInstOptions) {
+          this.dom.btnInstOptions.classList.add("disabled");
+          this.dom.btnInstOptions.style.pointerEvents = "none";
+          this.dom.btnInstOptions.style.opacity = "0.4";
+        }
+        this.instrumentType = "futures";
+        if (this.dom.btnInstFutures) this.dom.btnInstFutures.classList.add("active");
+        if (this.dom.btnInstOptions) this.dom.btnInstOptions.classList.remove("active");
+        if (this.dom.futuresSpecificControls) this.dom.futuresSpecificControls.classList.remove("hidden");
+        if (this.dom.optionsSpecificControls) this.dom.optionsSpecificControls.classList.add("hidden");
+        if (this.dom.deskTitle) this.dom.deskTitle.innerText = "US CME FUTURES DESK";
+        if (this.dom.deskSubtitle) this.dom.deskSubtitle.innerText = "Prop Firm Evaluation • Intraday Margins";
+        if (this.dom.summaryPriceLabel) this.dom.summaryPriceLabel.innerText = "INDEX PRICE";
+        if (this.dom.summaryCapitalLabel) this.dom.summaryCapitalLabel.innerText = "PROP MARGIN";
+        if (this.dom.summaryDeltaLabel) this.dom.summaryDeltaLabel.innerText = "POINT VAL";
+      } else {
+        if (this.dom.modeSelectorIn) this.dom.modeSelectorIn.classList.remove("hidden");
+        if (this.dom.indexPills) this.dom.indexPills.classList.remove("hidden");
+        if (this.dom.stockSelectWrapper) this.dom.stockSelectWrapper.classList.add("hidden");
+        if (this.dom.usFuturesPills) this.dom.usFuturesPills.classList.add("hidden");
+        if (this.dom.capitalPresetsIn) this.dom.capitalPresetsIn.classList.remove("hidden");
+        if (this.dom.capitalPresetsUs) this.dom.capitalPresetsUs.classList.add("hidden");
+        if (this.dom.customCapLabel) this.dom.customCapLabel.innerText = "Or Enter Custom Capital (₹):";
+        if (this.dom.inputCustomCapital) this.dom.inputCustomCapital.value = this.currentCapital;
+        if (this.dom.futMarginLabel) this.dom.futMarginLabel.innerText = "MARGIN / LOT (~12.5%)";
+        if (this.dom.futNotionalLabel) this.dom.futNotionalLabel.innerText = "NOTIONAL VAL / LOT";
+        if (this.dom.btnInstOptions) {
+          this.dom.btnInstOptions.classList.remove("disabled");
+          this.dom.btnInstOptions.style.pointerEvents = "auto";
+          this.dom.btnInstOptions.style.opacity = "1";
+        }
+      }
+    }
+
+    switchMarket(targetMarket) {
+      if (this.currentMarket === targetMarket) return;
+      if (this.activePosition) {
+        alert("Please close your open position before switching markets.");
+        return;
+      }
+
+      // Save current capital into market-specific variable
+      if (this.currentMarket === "US") {
+        this.usdStartingCapital = this.startingCapital;
+        this.usdCurrentCapital = this.currentCapital;
+      } else {
+        this.inrStartingCapital = this.startingCapital;
+        this.inrCurrentCapital = this.currentCapital;
+      }
+
+      this.currentMarket = targetMarket;
+
+      // Restore target market capital
+      if (this.currentMarket === "US") {
+        this.startingCapital = this.usdStartingCapital;
+        this.currentCapital = this.usdCurrentCapital;
+        this.currentMode = "us_futures";
+        this.currentSymbol = "MES";
+      } else {
+        this.startingCapital = this.inrStartingCapital;
+        this.currentCapital = this.inrCurrentCapital;
+        this.currentMode = "index";
+        this.currentSymbol = "NIFTY";
+      }
+
+      this.dayStartCapital = this.currentCapital;
+      this.dayPnL = 0.0;
+      this.tradeJournal = [];
+      this.syncMarketUI();
+      this.updateHUD();
+      this.saveState();
+
+      if (targetMarket === "US") {
+        if (this.dom.usFuturesPills) {
+          this.dom.usFuturesPills.querySelectorAll(".pill-btn").forEach(p => {
+            p.classList.toggle("active", p.dataset.symbol === "MES");
+          });
+        }
+      } else {
+        if (this.dom.indexPills) {
+          this.dom.indexPills.querySelectorAll(".pill-btn").forEach(p => {
+            p.classList.toggle("active", p.dataset.symbol === "NIFTY");
+          });
+        }
+      }
+
+      this.startNewSession(this.currentSymbol);
+    }
+
     loadSavedState() {
       try {
         const saved = localStorage.getItem("arrow_game_state");
         if (saved) {
           const s = JSON.parse(saved);
-          if (s.startingCapital) {
-            this.startingCapital = parseFloat(s.startingCapital) || 1000000.0;
-          }
-          if (typeof s.currentCapital === "number") {
-            this.currentCapital = parseFloat(s.currentCapital);
+          if (s.inrStartingCapital) this.inrStartingCapital = parseFloat(s.inrStartingCapital) || 1000000.0;
+          if (s.inrCurrentCapital) this.inrCurrentCapital = parseFloat(s.inrCurrentCapital) || 1000000.0;
+          if (s.usdStartingCapital) this.usdStartingCapital = parseFloat(s.usdStartingCapital) || 50000.0;
+          if (s.usdCurrentCapital) this.usdCurrentCapital = parseFloat(s.usdCurrentCapital) || 50000.0;
+          if (s.currentMarket) this.currentMarket = s.currentMarket;
+
+          if (this.currentMarket === "US") {
+            this.startingCapital = this.usdStartingCapital;
+            this.currentCapital = this.usdCurrentCapital;
           } else {
-            this.currentCapital = this.startingCapital;
+            this.startingCapital = this.inrStartingCapital;
+            this.currentCapital = this.inrCurrentCapital;
           }
+
           if (typeof s.dayStartCapital === "number") {
             this.dayStartCapital = parseFloat(s.dayStartCapital);
           } else {
@@ -543,10 +689,22 @@
 
     saveState() {
       try {
+        if (this.currentMarket === "US") {
+          this.usdStartingCapital = this.startingCapital;
+          this.usdCurrentCapital = this.currentCapital;
+        } else {
+          this.inrStartingCapital = this.startingCapital;
+          this.inrCurrentCapital = this.currentCapital;
+        }
         const state = {
+          currentMarket: this.currentMarket,
           startingCapital: this.startingCapital,
           currentCapital: this.currentCapital,
           dayStartCapital: this.dayStartCapital,
+          inrStartingCapital: this.inrStartingCapital,
+          inrCurrentCapital: this.inrCurrentCapital,
+          usdStartingCapital: this.usdStartingCapital,
+          usdCurrentCapital: this.usdCurrentCapital,
           xp: this.xp,
           rank: this.rank,
           audioEnabled: this.audio.enabled
@@ -564,8 +722,13 @@
             const st = this.config.state;
             const hasLocal = localStorage.getItem("arrow_game_state");
             if (!hasLocal) {
-              if (st.starting_balance) this.startingCapital = st.starting_balance;
-              if (st.current_balance) this.currentCapital = st.current_balance;
+              if (st.inr_starting_balance) this.inrStartingCapital = st.inr_starting_balance;
+              if (st.inr_current_balance) this.inrCurrentCapital = st.inr_current_balance;
+              if (st.usd_starting_balance) this.usdStartingCapital = st.usd_starting_balance;
+              if (st.usd_current_balance) this.usdCurrentCapital = st.usd_current_balance;
+              if (st.market) this.currentMarket = st.market;
+              this.startingCapital = this.currentMarket === "US" ? this.usdStartingCapital : this.inrStartingCapital;
+              this.currentCapital = this.currentMarket === "US" ? this.usdCurrentCapital : this.inrCurrentCapital;
               this.dayStartCapital = this.currentCapital;
             }
             if (st.xp) this.xp = st.xp || this.xp;
@@ -831,7 +994,8 @@
       if (this.supertrendUpSeries) this.supertrendUpSeries.setData([]);
       if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
 
-      const sym = symbol || this.currentSymbol;
+      const isUS = this.currentMarket === "US";
+      const sym = symbol || (isUS ? "MES" : this.currentSymbol);
 
       // Show loading UI
       this.dom.spotPrice.innerText = "Loading...";
@@ -842,7 +1006,8 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            mode: this.currentMode,
+            mode: isUS ? "us_futures" : this.currentMode,
+            market: this.currentMarket,
             symbol: sym,
             date: date,
             blind_mode: this.blindMode
@@ -1023,9 +1188,15 @@
         this.dom.displayDate.innerText = this.session.pretty_date || this.session.date;
       }
 
-      // Lot Size
-      this.dom.badgeLotSize.innerHTML = `Lot: <b>${this.session.lot_size} Qty</b>`;
-      this.dom.strikeStepLabel.innerText = `Step: ${this.session.strike_step} pts`;
+      // Lot Size / Multiplier
+      const isUS = this.currentMarket === "US" || this.session.market === "US";
+      if (isUS) {
+        this.dom.badgeLotSize.innerHTML = `Multiplier: <b>$${this.session.point_value || 5}/pt</b>`;
+        this.dom.strikeStepLabel.innerText = `Tick: ${this.session.tick_size || 0.25} pts`;
+      } else {
+        this.dom.badgeLotSize.innerHTML = `Lot: <b>${this.session.lot_size} Qty</b>`;
+        this.dom.strikeStepLabel.innerText = `Step: ${this.session.strike_step} pts`;
+      }
 
       // Slider Max
       this.dom.timelineSlider.max = Math.max(0, this.session.total_bars - 1);
@@ -1196,8 +1367,9 @@
       const dayOpen = this.session.candles[0].open;
       const netPts = currentCandle.close - dayOpen;
       const netPct = (netPts / dayOpen) * 100;
+      const isUS = this.currentMarket === "US" || this.session.market === "US";
 
-      this.dom.spotPrice.innerText = `₹ ${currentCandle.close.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      this.dom.spotPrice.innerText = this.formatCurrency(currentCandle.close);
       this.dom.spotChange.innerText = `${netPts >= 0 ? "+" : ""}${netPts.toFixed(2)} (${netPct.toFixed(2)}%)`;
       this.dom.spotChange.className = `spot-change font-mono ${netPts >= 0 ? "positive" : "negative"}`;
 
@@ -1205,10 +1377,15 @@
       this.dom.barHigh.innerText = currentCandle.high.toFixed(2);
       this.dom.barLow.innerText = currentCandle.low.toFixed(2);
       this.dom.barClose.innerText = currentCandle.close.toFixed(2);
-      this.dom.barVol.innerText = (currentCandle.volume || 0).toLocaleString("en-IN");
+      this.dom.barVol.innerText = (currentCandle.volume || 0).toLocaleString(isUS ? "en-US" : "en-IN");
 
       // Sim Time & Bar Index
-      this.dom.simTime.innerText = `${currentCandle.time_str || "09:15"} AM`;
+      const timeStr = currentCandle.time_str || (isUS ? "09:30" : "09:15");
+      const [hh, mm] = timeStr.split(":");
+      const hNum = parseInt(hh, 10);
+      const ampm = hNum >= 12 ? "PM" : "AM";
+      const dispH = hNum > 12 ? (hNum - 12) : (hNum === 0 ? 12 : hNum);
+      this.dom.simTime.innerText = `${String(dispH).padStart(2, "0")}:${mm} ${ampm}`;
       this.dom.barCounter.innerText = `Bar ${this.currentBarIndex + 1} / ${this.session.total_bars}`;
       this.dom.timelineSlider.value = this.currentBarIndex;
 
@@ -1385,6 +1562,10 @@
         alert("You have an active open position! Close it before switching instrument desks.");
         return;
       }
+      if (type === "options" && this.currentMarket === "US") {
+        alert("Options are currently available in India Market mode. US mode is specialized for CME Futures (MES, MNQ, ES, NQ) Prop Firm evaluation.");
+        return;
+      }
       this.instrumentType = type;
       this.customSLPrice = null;
       this.customTargetPrice = null;
@@ -1395,11 +1576,12 @@
         this.dom.btnInstOptions.classList.remove("active");
         this.dom.futuresSpecificControls.classList.remove("hidden");
         this.dom.optionsSpecificControls.classList.add("hidden");
-        this.dom.deskTitle.innerText = "FUTURES ORDER DESK";
-        this.dom.deskSubtitle.innerText = "Intraday Futures Margin & Direct Spot Pricing";
-        this.dom.summaryPriceLabel.innerText = "FUT PRICE";
-        this.dom.summaryCapitalLabel.innerText = "MARGIN REQ";
-        this.dom.summaryDeltaLabel.innerText = "LEVERAGE";
+        const isUS = this.currentMarket === "US";
+        this.dom.deskTitle.innerText = isUS ? "US CME FUTURES DESK" : "FUTURES ORDER DESK";
+        this.dom.deskSubtitle.innerText = isUS ? "Prop Firm Evaluation • Intraday Margins" : "Intraday Futures Margin & Direct Spot Pricing";
+        this.dom.summaryPriceLabel.innerText = isUS ? "INDEX PRICE" : "FUT PRICE";
+        this.dom.summaryCapitalLabel.innerText = isUS ? "PROP MARGIN" : "MARGIN REQ";
+        this.dom.summaryDeltaLabel.innerText = isUS ? "POINT VAL" : "LEVERAGE";
 
         // Update SL & Target preset chips for Futures (percentage of spot)
         const slValues = ["0.3", "0.5", "1.0", "1.5"];
@@ -1478,20 +1660,40 @@
       if (!this.session) return;
       const candle = this.session.candles[this.currentBarIndex];
       const spot = candle.close;
-      const lot = this.session.lot_size;
+      const isUS = this.currentMarket === "US" || this.session.market === "US";
+      const lot = this.session.lot_size || 1;
       const isLong = this.selectedFutDirection === "LONG";
+      const pointValue = isUS ? (this.session.point_value || 5.0) : 1.0;
 
-      // Margin Rate (~12.5% for Index, ~15% for Stocks)
-      const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
-      const leverage = (1 / marginRate).toFixed(1) + "x";
-      const notionalPerLot = Math.round(spot * lot);
-      const marginPerLot = Math.round(notionalPerLot * marginRate);
+      // Margin Rate (~12.5% for Index, ~15% for Stocks, flat $50/$500 for US Futures)
+      let marginPerLot;
+      let notionalPerLot;
+      let leverageText;
+      if (isUS) {
+        marginPerLot = this.session.margin_per_contract || 50.0;
+        notionalPerLot = Math.round(spot * pointValue);
+        const effLev = Math.round(notionalPerLot / marginPerLot);
+        leverageText = `${effLev}x ($${pointValue}/pt)`;
+      } else {
+        const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
+        leverageText = (1 / marginRate).toFixed(1) + "x";
+        notionalPerLot = Math.round(spot * lot);
+        marginPerLot = Math.round(notionalPerLot * marginRate);
+      }
 
       // Contract details in DOM
-      if (this.dom.futContractName) this.dom.futContractName.innerText = `${this.session.symbol} FUT`;
-      if (this.dom.futLtp) this.dom.futLtp.innerText = `₹ ${spot.toFixed(2)}`;
-      if (this.dom.futMarginPerLot) this.dom.futMarginPerLot.innerText = `₹ ${marginPerLot.toLocaleString("en-IN")}`;
-      if (this.dom.futNotionalVal) this.dom.futNotionalVal.innerText = `₹ ${notionalPerLot.toLocaleString("en-IN")}`;
+      if (this.dom.futContractName) {
+        this.dom.futContractName.innerText = isUS
+          ? `${this.session.symbol} FUT ($${pointValue}/pt)`
+          : `${this.session.symbol} FUT`;
+      }
+      if (this.dom.futLtp) this.dom.futLtp.innerText = this.formatCurrency(spot);
+      if (this.dom.futMarginPerLot) this.dom.futMarginPerLot.innerText = this.formatCurrency(marginPerLot);
+      if (this.dom.futNotionalVal) {
+        this.dom.futNotionalVal.innerText = isUS
+          ? `$${pointValue}/pt (${this.formatCurrency(notionalPerLot, true, 0)})`
+          : this.formatCurrency(notionalPerLot);
+      }
 
       // 1. Determine Stop Loss Price
       let slPrice;
@@ -1505,12 +1707,12 @@
           this.customSLPrice = slPrice;
         }
         const slDiffPct = Math.max(0.1, Math.abs(spot - slPrice) / spot * 100);
-        this.dom.slReadout.innerText = `Custom -${slDiffPct.toFixed(1)}% (₹${slPrice.toFixed(2)})`;
+        this.dom.slReadout.innerText = `Custom -${slDiffPct.toFixed(1)}% (${this.formatCurrency(slPrice)})`;
       } else {
         slPrice = isLong
           ? Math.round(spot * (1 - this.selectedFutSLPct / 100) * 100) / 100
           : Math.round(spot * (1 + this.selectedFutSLPct / 100) * 100) / 100;
-        this.dom.slReadout.innerText = `-${this.selectedFutSLPct}% (₹${slPrice.toFixed(2)})`;
+        this.dom.slReadout.innerText = `-${this.selectedFutSLPct}% (${this.formatCurrency(slPrice)})`;
         if (this.dom.inputSLPrice !== document.activeElement) {
           this.dom.inputSLPrice.value = slPrice.toFixed(2);
         }
@@ -1528,27 +1730,28 @@
           this.customTargetPrice = targetPrice;
         }
         const tgDiffPct = Math.max(0.1, Math.abs(targetPrice - spot) / spot * 100);
-        this.dom.targetReadout.innerText = `Custom +${tgDiffPct.toFixed(1)}% (₹${targetPrice.toFixed(2)})`;
+        this.dom.targetReadout.innerText = `Custom +${tgDiffPct.toFixed(1)}% (${this.formatCurrency(targetPrice)})`;
       } else {
         targetPrice = isLong
           ? Math.round(spot * (1 + this.selectedFutTargetPct / 100) * 100) / 100
           : Math.round(spot * (1 - this.selectedFutTargetPct / 100) * 100) / 100;
-        this.dom.targetReadout.innerText = `+${this.selectedFutTargetPct}% (₹${targetPrice.toFixed(2)})`;
+        this.dom.targetReadout.innerText = `+${this.selectedFutTargetPct}% (${this.formatCurrency(targetPrice)})`;
         if (this.dom.inputTargetPrice !== document.activeElement) {
           this.dom.inputTargetPrice.value = targetPrice.toFixed(2);
         }
       }
 
-      // 3. Risk-Based Position Sizing (Lots Calculator)
-      const accountEquity = Math.max(10000, this.currentCapital + (this.activePosition ? this.activePosition.pnl : 0));
-      const maxRiskRupees = Math.round(accountEquity * (this.selectedRiskPct / 100));
-      const pointsRisk = Math.max(0.5, Math.abs(spot - slPrice));
-      const pointsReward = Math.max(0.5, Math.abs(targetPrice - spot));
-      const riskPerLot = Math.round(pointsRisk * lot * 100) / 100;
+      // 3. Risk-Based Position Sizing (Lots / Contracts Calculator)
+      const minEquity = isUS ? 500 : 10000;
+      const accountEquity = Math.max(minEquity, this.currentCapital + (this.activePosition ? this.activePosition.pnl : 0));
+      const maxRiskAmount = Math.round(accountEquity * (this.selectedRiskPct / 100) * 100) / 100;
+      const pointsRisk = Math.max(isUS ? 0.25 : 0.5, Math.abs(spot - slPrice));
+      const pointsReward = Math.max(isUS ? 0.25 : 0.5, Math.abs(targetPrice - spot));
+      const riskPerLot = Math.round(pointsRisk * pointValue * lot * 100) / 100;
 
       let lots;
       if (this.sizingMode === "risk") {
-        const autoLots = riskPerLot > 0 ? Math.max(1, Math.floor(maxRiskRupees / riskPerLot)) : 1;
+        const autoLots = riskPerLot > 0 ? Math.max(1, Math.floor(maxRiskAmount / riskPerLot)) : 1;
         const maxAffordable = marginPerLot > 0 ? Math.max(1, Math.floor(this.currentCapital / marginPerLot)) : 100;
         lots = Math.max(1, Math.min(autoLots, maxAffordable));
         this.selectedLots = lots;
@@ -1557,26 +1760,33 @@
         lots = parseInt(this.selectedLots) || 1;
       }
 
-      const totalQty = lots * lot;
-      const totalMargin = lots * marginPerLot;
-      const totalRisk = Math.round(pointsRisk * totalQty);
-      const totalReward = Math.round(pointsReward * totalQty);
+      const totalQty = isUS ? lots : (lots * lot);
+      const totalMargin = Math.round(lots * marginPerLot * 100) / 100;
+      const totalRisk = Math.round(pointsRisk * pointValue * totalQty * 100) / 100;
+      const totalReward = Math.round(pointsReward * pointValue * totalQty * 100) / 100;
       const rr = totalRisk > 0 ? (totalReward / totalRisk).toFixed(1) : "2.0";
 
       // 4. Update DOM Readouts
-      this.dom.riskAmountReadout.innerText = `₹ ${maxRiskRupees.toLocaleString("en-IN")} (${this.selectedRiskPct}%)`;
-      this.dom.calcMaxLoss.innerText = `₹ ${maxRiskRupees.toLocaleString("en-IN")}`;
-      this.dom.calcLotsResult.innerText = `${lots} Lots (${totalQty} Qty)`;
-      this.dom.calcRiskPerLot.innerText = `₹ ${riskPerLot.toLocaleString("en-IN")}`;
-      this.dom.totalQtyReadout.innerText = `${totalQty} Qty (${lots} Lots)`;
+      const unitLabel = isUS ? "Contracts" : "Lots";
+      this.dom.riskAmountReadout.innerText = `${this.formatCurrency(maxRiskAmount)} (${this.selectedRiskPct}%)`;
+      this.dom.calcMaxLoss.innerText = this.formatCurrency(maxRiskAmount);
+      this.dom.calcLotsResult.innerText = isUS
+        ? `${lots} Contracts (${lots * pointValue} $ pts)`
+        : `${lots} Lots (${totalQty} Qty)`;
+      this.dom.calcRiskPerLot.innerText = isUS
+        ? `${this.formatCurrency(riskPerLot)} / contract`
+        : this.formatCurrency(riskPerLot);
+      this.dom.totalQtyReadout.innerText = isUS
+        ? `${lots} Contract(s)`
+        : `${totalQty} Qty (${lots} Lots)`;
       this.dom.rrRatio.innerText = `1 : ${rr}`;
 
-      this.dom.summaryPremium.innerText = `₹ ${spot.toFixed(2)}`;
-      this.dom.summaryTotalCost.innerText = `₹ ${totalMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-      this.dom.summaryDelta.innerText = `${leverage} (1.00 Δ)`;
+      this.dom.summaryPremium.innerText = this.formatCurrency(spot);
+      this.dom.summaryTotalCost.innerText = this.formatCurrency(totalMargin);
+      this.dom.summaryDelta.innerText = isUS ? `$${pointValue}/pt (1.00 Δ)` : `${leverageText} (1.00 Δ)`;
 
       const actionVerb = isLong ? "BUY" : "SHORT";
-      this.dom.btnExecuteText.innerText = `${actionVerb} ${lots} LOTS ${this.session.symbol} FUT (Margin: ₹${totalMargin.toLocaleString("en-IN")})`;
+      this.dom.btnExecuteText.innerText = `${actionVerb} ${lots} ${unitLabel.toUpperCase()} ${this.session.symbol} FUT (Margin: ${this.formatCurrency(totalMargin)})`;
       this.dom.btnExecuteOrder.className = `btn-execute ${isLong ? "glow-call" : "glow-put"}`;
 
       // 5. Visual Preview lines on chart
@@ -1699,16 +1909,25 @@
 
       const candle = this.session.candles[this.currentBarIndex];
       const spot = candle.close;
-      const lot = this.session.lot_size;
+      const isUS = this.currentMarket === "US" || this.session.market === "US";
+      const lot = this.session.lot_size || 1;
+      const pointValue = isUS ? (this.session.point_value || 5.0) : 1.0;
       const isLong = this.selectedFutDirection === "LONG";
-      const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
-      const marginPerLot = Math.round(spot * lot * marginRate);
+
+      let marginPerLot;
+      if (isUS) {
+        marginPerLot = this.session.margin_per_contract || 50.0;
+      } else {
+        const marginRate = (this.session.instrument_type === "stock" || this.currentMode === "stock") ? 0.15 : 0.125;
+        marginPerLot = Math.round(spot * lot * marginRate);
+      }
+
       const lots = parseInt(this.selectedLots) || 1;
-      const totalQty = lots * lot;
-      const totalMargin = lots * marginPerLot;
+      const totalQty = isUS ? lots : (lots * lot);
+      const totalMargin = Math.round(lots * marginPerLot * 100) / 100;
 
       if (totalMargin > this.currentCapital) {
-        alert(`Insufficient Capital for Futures Margin! Required Margin: ₹${totalMargin.toLocaleString("en-IN")}, Available Cash: ₹${this.currentCapital.toLocaleString("en-IN")}`);
+        alert(`Insufficient Capital for Futures Margin! Required Margin: ${this.formatCurrency(totalMargin)}, Available Cash: ${this.formatCurrency(this.currentCapital)}`);
         return;
       }
 
@@ -1741,6 +1960,9 @@
         strike: 0,
         direction: this.selectedFutDirection, // 'LONG' or 'SHORT'
         expiry: "monthly",
+        market: isUS ? "US" : "IN",
+        currency: isUS ? "USD" : "INR",
+        pointValue: pointValue,
         lots: lots,
         lotSize: lot,
         qty: totalQty,
@@ -1770,7 +1992,7 @@
         position: isLong ? "belowBar" : "aboveBar",
         color: isLong ? "#10b981" : "#f43f5e",
         shape: isLong ? "arrowUp" : "arrowDown",
-        text: `${isLong ? "BUY" : "SHORT"} ${this.session.symbol} FUT @ ₹${spot.toFixed(1)}`,
+        text: `${isLong ? "BUY" : "SHORT"} ${lots} ${this.session.symbol} @ ${this.formatCurrency(spot)}`,
       });
       this.candleSeries.setMarkers(this.chartMarkers);
 
@@ -1781,6 +2003,10 @@
       if (!this.session) return;
       if (this.activePosition) {
         alert("You already have an active open position! Square off or let it hit target/stop loss before placing another bet.");
+        return;
+      }
+      if (this.currentMarket === "US") {
+        alert("Options are currently available in India Market mode. US mode simulates CME Futures for Prop Firm evaluation.");
         return;
       }
 
@@ -1797,7 +2023,7 @@
 
       // Balance check
       if (totalCost > this.currentCapital) {
-        alert(`Insufficient Funds! Required: ₹${totalCost.toLocaleString("en-IN")}, Available Cash: ₹${this.currentCapital.toLocaleString("en-IN")}`);
+        alert(`Insufficient Funds! Required: ${this.formatCurrency(totalCost)}, Available Cash: ${this.formatCurrency(this.currentCapital)}`);
         return;
       }
 
@@ -1857,7 +2083,7 @@
         position: this.selectedDirection === "CE" ? "belowBar" : "aboveBar",
         color: this.selectedDirection === "CE" ? "#10b981" : "#f43f5e",
         shape: this.selectedDirection === "CE" ? "arrowUp" : "arrowDown",
-        text: `BUY ${this.selectedStrike} ${this.selectedDirection} @ ₹${opt.price.toFixed(1)}`,
+        text: `BUY ${this.selectedStrike} ${this.selectedDirection} @ ${this.formatCurrency(opt.price)}`,
       });
       this.candleSeries.setMarkers(this.chartMarkers);
 
@@ -2408,9 +2634,10 @@
         }
 
         // Live MTM PnL
+        const mult = pos.pointValue || 1.0;
         pos.pnl = isLong
-          ? Math.round((pos.currentPrice - pos.entryPrice) * pos.qty * 100) / 100
-          : Math.round((pos.entryPrice - pos.currentPrice) * pos.qty * 100) / 100;
+          ? Math.round((pos.currentPrice - pos.entryPrice) * mult * pos.qty * 100) / 100
+          : Math.round((pos.entryPrice - pos.currentPrice) * mult * pos.qty * 100) / 100;
         pos.roiPct = pos.marginBlocked > 0
           ? Math.round((pos.pnl / pos.marginBlocked) * 1000) / 10
           : 0;
@@ -2440,7 +2667,7 @@
         return;
       }
 
-      // 3. Check for EOD auto square-off at 15:25 (bar 74)
+      // 3. Check for EOD auto square-off at last bar
       if (this.currentBarIndex >= this.session.total_bars - 1) {
         this.closePosition(extremes.close, "EOD_SQUAREOFF", candle);
         return;
@@ -2469,24 +2696,24 @@
       // Badge
       if (isFutures) {
         this.dom.posSymbolTag.innerText = `${pos.symbol} FUT [${pos.direction}]`;
-        this.dom.posCapitalDeployed.innerText = `Margin: ₹${pos.marginBlocked.toLocaleString("en-IN")}`;
+        this.dom.posCapitalDeployed.innerText = `Margin: ${this.formatCurrency(pos.marginBlocked)}`;
       } else {
         this.dom.posSymbolTag.innerText = `${pos.symbol} ${pos.strike} ${pos.direction} [${pos.expiry.toUpperCase()}]`;
-        this.dom.posCapitalDeployed.innerText = `Capital: ₹${pos.totalCost.toLocaleString("en-IN")}`;
+        this.dom.posCapitalDeployed.innerText = `Capital: ${this.formatCurrency(pos.totalCost)}`;
       }
 
       // Live PnL
       const sign = pos.pnl >= 0 ? "+" : "";
-      this.dom.posLivePnl.innerText = `${sign}₹ ${pos.pnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      this.dom.posLivePnl.innerText = `${sign}${this.formatCurrency(pos.pnl)}`;
       this.dom.posLivePnl.className = `pnl-amount font-mono ${pos.pnl >= 0 ? "positive" : "negative"}`;
 
       this.dom.posLiveRoi.innerText = `${sign}${pos.roiPct.toFixed(1)}%`;
       this.dom.posLiveRoi.className = `roi-tag ${pos.pnl >= 0 ? "positive" : "negative"}`;
 
       // Progress Track between SL and Target
-      this.dom.posSlVal.innerText = `SL: ₹${pos.slPrice.toFixed(2)}`;
-      this.dom.posCurVal.innerText = `LTP: ₹${pos.currentPrice.toFixed(2)}`;
-      this.dom.posTgVal.innerText = `Target: ₹${pos.targetPrice.toFixed(2)}`;
+      this.dom.posSlVal.innerText = `SL: ${this.formatCurrency(pos.slPrice)}`;
+      this.dom.posCurVal.innerText = `LTP: ${this.formatCurrency(pos.currentPrice)}`;
+      this.dom.posTgVal.innerText = `Target: ${this.formatCurrency(pos.targetPrice)}`;
 
       const isShort = isFutures && pos.direction === "SHORT";
       let pct;
@@ -2506,9 +2733,9 @@
         overlayBadge.innerText = isFutures ? `${pos.symbol} FUT ${pos.direction}` : `${pos.strike} ${pos.direction}`;
       }
       document.getElementById("overlay-qty").innerText = `${pos.qty} Qty`;
-      document.getElementById("overlay-entry").innerText = `Entry: ₹${pos.entryPrice.toFixed(2)}`;
-      document.getElementById("overlay-cur").innerText = `LTP: ₹${pos.currentPrice.toFixed(2)}`;
-      document.getElementById("overlay-pnl").innerText = `${sign}₹${pos.pnl} (${sign}${pos.roiPct}%)`;
+      document.getElementById("overlay-entry").innerText = `Entry: ${this.formatCurrency(pos.entryPrice)}`;
+      document.getElementById("overlay-cur").innerText = `LTP: ${this.formatCurrency(pos.currentPrice)}`;
+      document.getElementById("overlay-pnl").innerText = `${sign}${this.formatCurrency(pos.pnl)} (${sign}${pos.roiPct}%)`;
       document.getElementById("overlay-pnl").className = `overlay-pnl font-mono ${pos.pnl >= 0 ? "positive" : "negative"}`;
     }
 
@@ -2525,9 +2752,10 @@
 
       if (isFutures) {
         const isLong = pos.direction === "LONG";
+        const mult = pos.pointValue || 1.0;
         finalPnl = isLong
-          ? Math.round((actualExit - pos.entryPrice) * pos.qty * 100) / 100
-          : Math.round((pos.entryPrice - actualExit) * pos.qty * 100) / 100;
+          ? Math.round((actualExit - pos.entryPrice) * mult * pos.qty * 100) / 100
+          : Math.round((pos.entryPrice - actualExit) * mult * pos.qty * 100) / 100;
         finalRoi = pos.marginBlocked > 0
           ? Math.round((finalPnl / pos.marginBlocked) * 1000) / 10
           : 0;
@@ -2540,6 +2768,11 @@
 
       // Update balances
       this.currentCapital = Math.round((this.currentCapital + returnedFunds) * 100) / 100;
+      if (this.currentMarket === "US") {
+        this.usdCurrentCapital = this.currentCapital;
+      } else {
+        this.inrCurrentCapital = this.currentCapital;
+      }
       this.dayPnL = Math.round((this.dayPnL + finalPnl) * 100) / 100;
       this.totalTrades++;
       if (finalPnl > 0) this.wins++; else this.losses++;
@@ -2564,13 +2797,15 @@
         position: finalPnl >= 0 ? "aboveBar" : "belowBar",
         color: finalPnl >= 0 ? "#10b981" : "#f43f5e",
         shape: "circle",
-        text: `${reason === "TARGET_HIT" ? "🎯 TARGET" : (reason === "STOP_LOSS_HIT" ? "🛑 SL" : "🚪 EXIT")} @ ₹${actualExit.toFixed(1)} (${finalPnl >= 0 ? "+" : ""}₹${finalPnl})`,
+        text: `${reason === "TARGET_HIT" ? "🎯 TARGET" : (reason === "STOP_LOSS_HIT" ? "🛑 SL" : "🚪 EXIT")} @ ${this.formatCurrency(actualExit)} (${finalPnl >= 0 ? "+" : ""}${this.formatCurrency(finalPnl)})`,
       });
       this.candleSeries.setMarkers(this.chartMarkers);
 
       // Record in journal
       const tradeRecord = {
         id: pos.id,
+        market: this.currentMarket,
+        currency: this.currentMarket === "US" ? "USD" : "INR",
         time: `${pos.entryTime} → ${candle ? (candle.time_str || "15:30") : "Exit"}`,
         symbol: isFutures ? `${pos.symbol} FUT` : `${pos.symbol} ${pos.strike}`,
         type: isFutures ? (pos.direction === "LONG" ? "FUT_LONG" : "FUT_SHORT") : pos.direction,
@@ -2604,6 +2839,8 @@
           body: JSON.stringify({
             trade_id: trade.id,
             symbol: pos.symbol,
+            market: pos.market || this.currentMarket,
+            currency: pos.currency || (this.currentMarket === "US" ? "USD" : "INR"),
             instrument_type: pos.instrumentType || "options",
             strike: pos.strike || 0,
             option_type: pos.direction,
@@ -2666,12 +2903,12 @@
       this.dom.journalWinrate.innerText = `${winRate}%`;
 
       const sign = this.dayPnL >= 0 ? "+" : "";
-      this.dom.journalTotalPnl.innerText = `${sign}₹ ${this.dayPnL.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      this.dom.journalTotalPnl.innerText = `${sign}${this.formatCurrency(this.dayPnL)}`;
       this.dom.journalTotalPnl.className = this.dayPnL >= 0 ? "positive" : "negative";
 
       if (!this.tradeJournal.length) {
         this.dom.journalTbody.innerHTML = `
-          <tr class="empty-row"><td colspan="10">No closed trades yet in this session. Take an option bet above to start journaling!</td></tr>
+          <tr class="empty-row"><td colspan="10">No closed trades yet in this session. Take a trade above to start journaling!</td></tr>
         `;
         return;
       }
@@ -2679,19 +2916,19 @@
       const rows = this.tradeJournal.map((t, i) => {
         const pnlClass = t.pnl >= 0 ? "positive" : "negative";
         const reasonBadge = t.reason === "TARGET_HIT" ? "🎯 Target Hit" :
-          (t.reason === "STOP_LOSS_HIT" ? "🛑 Stop Loss Hit" : (t.reason === "EOD_SQUAREOFF" ? "⏰ 15:30 EOD" : "🚪 Market Exit"));
+          (t.reason === "STOP_LOSS_HIT" ? "🛑 Stop Loss Hit" : (t.reason === "EOD_SQUAREOFF" ? "⏰ Session EOD" : "🚪 Market Exit"));
 
         return `
           <tr>
             <td>#${this.tradeJournal.length - i}</td>
             <td>${t.time}</td>
             <td><b>${t.symbol}</b></td>
-            <td><span class="moneyness-tag ${t.type === "CE" ? "ITM" : "OTM"}">${t.type}</span></td>
+            <td><span class="moneyness-tag ${t.type.includes("CE") || t.type.includes("LONG") ? "ITM" : "OTM"}">${t.type}</span></td>
             <td>${t.qty}</td>
-            <td>₹${t.buyPrice.toFixed(2)}</td>
-            <td>₹${t.sellPrice.toFixed(2)}</td>
+            <td>${this.formatCurrency(t.buyPrice)}</td>
+            <td>${this.formatCurrency(t.sellPrice)}</td>
             <td>${reasonBadge}</td>
-            <td class="${pnlClass}"><b>${t.pnl >= 0 ? "+" : ""}₹${t.pnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</b></td>
+            <td class="${pnlClass}"><b>${t.pnl >= 0 ? "+" : ""}${this.formatCurrency(t.pnl)}</b></td>
             <td class="${pnlClass}">${t.roi >= 0 ? "+" : ""}${t.roi.toFixed(1)}%</td>
           </tr>
         `;
@@ -2704,14 +2941,17 @@
       // Calculate live total equity & live day PnL (realized + unrealized MTM)
       const unrealizedPnL = this.activePosition ? (this.activePosition.pnl || 0) : 0;
       const liveDayPnL = Math.round((this.dayPnL + unrealizedPnL) * 100) / 100;
-      const activePositionValue = this.activePosition ? (this.activePosition.currentPrice * this.activePosition.qty) : 0;
+      const isFutures = this.activePosition && this.activePosition.instrumentType === "futures";
+      const activePositionValue = this.activePosition
+        ? (isFutures ? (this.activePosition.marginBlocked + unrealizedPnL) : (this.activePosition.currentPrice * this.activePosition.qty))
+        : 0;
       const totalEquity = Math.round((this.currentCapital + activePositionValue) * 100) / 100;
 
-      this.dom.hudCapital.innerText = `₹ ${Math.round(totalEquity).toLocaleString("en-IN")}`;
+      this.dom.hudCapital.innerText = this.formatCurrency(Math.round(totalEquity), true, 0);
 
       const sign = liveDayPnL >= 0 ? "+" : "";
       const pnlPct = this.startingCapital > 0 ? ((liveDayPnL / this.startingCapital) * 100).toFixed(2) : "0.00";
-      this.dom.hudPnl.innerHTML = `${sign}₹ ${liveDayPnL.toLocaleString("en-IN", { minimumFractionDigits: 2 })} <span class="stat-pct">(${sign}${pnlPct}%)</span>`;
+      this.dom.hudPnl.innerHTML = `${sign}${this.formatCurrency(liveDayPnL)} <span class="stat-pct">(${sign}${pnlPct}%)</span>`;
       this.dom.hudPnl.className = `stat-value font-mono ${liveDayPnL >= 0 ? "positive" : "negative"}`;
 
       // Rank & XP
@@ -2751,11 +2991,11 @@
       const grossProfit = this.tradeJournal.filter(t => t.pnl > 0).reduce((acc, t) => acc + t.pnl, 0);
       const grossLoss = Math.abs(this.tradeJournal.filter(t => t.pnl < 0).reduce((acc, t) => acc + t.pnl, 0));
       const pf = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? "∞" : "0.0");
-      const baseCap = (typeof this.dayStartCapital === "number" && this.dayStartCapital > 0) ? this.dayStartCapital : (this.startingCapital || 1000000);
+      const baseCap = (typeof this.dayStartCapital === "number" && this.dayStartCapital > 0) ? this.dayStartCapital : (this.startingCapital || (this.currentMarket === "US" ? 50000 : 1000000));
       const roi = baseCap > 0 ? ((this.dayPnL / baseCap) * 100).toFixed(2) : "0.0";
 
       const sign = this.dayPnL >= 0 ? "+" : "";
-      document.getElementById("eod-pnl-hero").innerText = `${sign}₹ ${this.dayPnL.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      document.getElementById("eod-pnl-hero").innerText = `${sign}${this.formatCurrency(this.dayPnL)}`;
       document.getElementById("eod-pnl-hero").className = `eod-pnl-val font-mono ${this.dayPnL >= 0 ? "positive" : "negative"}`;
       document.getElementById("eod-roi-hero").innerText = `${sign}${roi}% Day ROI`;
 
@@ -2779,7 +3019,28 @@
     // EVENT BINDINGS
     // ========================================================================
     bindEvents() {
-      // Mode Selector
+      // Market Switcher (India vs US Prop Firm)
+      if (this.dom.btnMarketIn) {
+        this.dom.btnMarketIn.addEventListener("click", () => this.switchMarket("IN"));
+      }
+      if (this.dom.btnMarketUs) {
+        this.dom.btnMarketUs.addEventListener("click", () => this.switchMarket("US"));
+      }
+
+      // US CME Futures Pills
+      if (this.dom.usFuturesPills) {
+        this.dom.usFuturesPills.querySelectorAll(".pill-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.dom.usFuturesPills.querySelectorAll(".pill-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const sym = btn.getAttribute("data-symbol");
+            this.currentSymbol = sym;
+            this.startNewSession(sym);
+          });
+        });
+      }
+
+      // Mode Selector (India)
       this.dom.btnModeIndex.addEventListener("click", () => {
         this.dom.btnModeIndex.classList.add("active");
         this.dom.btnModeStock.classList.remove("active");
@@ -3239,10 +3500,18 @@
       });
 
       this.dom.btnSaveCapital.addEventListener("click", async () => {
-        const val = parseFloat(this.dom.inputCustomCapital.value) || 1000000;
+        const defaultCap = this.currentMarket === "US" ? 50000 : 1000000;
+        const val = parseFloat(this.dom.inputCustomCapital.value) || defaultCap;
         this.startingCapital = val;
         this.currentCapital = val;
         this.dayStartCapital = val;
+        if (this.currentMarket === "US") {
+          this.usdStartingCapital = val;
+          this.usdCurrentCapital = val;
+        } else {
+          this.inrStartingCapital = val;
+          this.inrCurrentCapital = val;
+        }
         this.dayPnL = 0;
         this.totalTrades = 0;
         this.wins = 0;
@@ -3258,7 +3527,11 @@
           await fetch("/api/game/reset-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ starting_balance: val })
+            body: JSON.stringify({
+              starting_balance: val,
+              market: this.currentMarket,
+              currency: this.currentMarket === "US" ? "USD" : "INR"
+            })
           });
         } catch (e) {}
       });

@@ -8,7 +8,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
-from .instruments import INSTRUMENTS, INDEX_SYMBOLS, STOCK_SYMBOLS, get_instrument_config
+from .instruments import (
+    INSTRUMENTS,
+    INDEX_SYMBOLS,
+    STOCK_SYMBOLS,
+    US_FUTURES_SYMBOLS,
+    get_instrument_config
+)
 from .options_math import black_scholes_price, calculate_time_to_expiry, estimate_option_bar_extremes
 from ..market import MarketService
 
@@ -44,6 +50,11 @@ BASE_PRICES = {
     "TITAN": 3420.0,
     "SUNPHARMA": 1860.0,
     "KOTAKBANK": 1780.0,
+    # US CME Micro & Mini Futures
+    "MES": 5860.0,
+    "MNQ": 20650.0,
+    "ES": 5860.0,
+    "NQ": 20650.0,
 }
 
 
@@ -130,26 +141,34 @@ class SimulatorService:
         """
         Synthesizes an authentic 75 5-minute candle session for a symbol
         with realistic volatility, ATR-based price action, and volume profile.
+        Supports both Indian Equity/Indices (09:15-15:30 IST) and US Futures (09:30-15:45 EDT).
         """
-        base = BASE_PRICES.get(symbol, 1000.0)
-        day_open = base * (1.0 + random.uniform(-0.015, 0.015))
         inst = get_instrument_config(symbol)
-        tick = inst.get("tick_size", 0.05)
+        is_us = inst.get("market") == "US"
+        tick = inst.get("tick_size", 0.25 if is_us else 0.05)
+        base = BASE_PRICES.get(symbol, 5000.0 if is_us else 1000.0)
+        day_open = base * (1.0 + random.uniform(-0.012, 0.012))
 
         # 5 distinct market archetypes: bull trend, bear breakdown, range, v-reversal, breakout
         scenarios = ["bull", "bear", "range", "v_rev", "breakout"]
         scen = random.choice(scenarios)
-        vol = 0.0022 * day_open
+
+        if is_us:
+            vol = (0.0016 if "S&P" in inst.get("display_name", "") else 0.0028) * day_open
+        else:
+            vol = 0.0022 * day_open
 
         candles = []
         curr_price = day_open
-        dt_base = datetime.strptime(f"{date_str} 09:15:00", "%Y-%m-%d %H:%M:%S") if len(date_str) == 10 else datetime.now().replace(hour=9, minute=15)
+        time_start = "09:30:00" if is_us else "09:15:00"
+        dt_base = datetime.strptime(f"{date_str} {time_start}", "%Y-%m-%d %H:%M:%S") if len(date_str) == 10 else datetime.now().replace(hour=9, minute=30 if is_us else 15)
+        tz_offset = "-0400" if is_us else "+0530"
 
         for bar_idx in range(75):
             bar_dt = dt_base + timedelta(minutes=bar_idx * 5)
             unix_ts = int(bar_dt.timestamp())
             time_str = bar_dt.strftime("%H:%M")
-            ts_iso = bar_dt.strftime("%Y-%m-%dT%H:%M:%S+0530")
+            ts_iso = bar_dt.strftime(f"%Y-%m-%dT%H:%M:%S{tz_offset}")
 
             if scen == "bull":
                 drift = (0.018 / 75.0) * curr_price
@@ -173,9 +192,14 @@ class SimulatorService:
             bar_high = max(bar_open, bar_close) + uw
             bar_low = min(bar_open, bar_close) - lw
 
-            # Institutional U-shaped volume curve
+            # Institutional volume curve
             u = 1.0 + 3.0 * ((bar_idx - 37) / 37.0) ** 2
-            v_base = 50000 if symbol in INDEX_SYMBOLS else 5000
+            if is_us:
+                v_base = 12000
+            elif symbol in INDEX_SYMBOLS:
+                v_base = 50000
+            else:
+                v_base = 5000
             bar_vol = int(v_base * u * random.uniform(0.7, 1.4))
 
             o_r = round(round(bar_open / tick) * tick, 2)
@@ -221,6 +245,10 @@ class SimulatorService:
                         return cached_data
             except Exception as e:
                 logger.warning(f"Error reading local cache {cache_path}: {e}")
+
+        # For US CME Futures, generate high-fidelity US market session directly
+        if inst.get("market") == "US":
+            return self._generate_synthetic_day(symbol, date_str)
 
         # 2. Try remote Arrow API if token is valid
         formatted_candles: List[Dict[str, Any]] = []
@@ -296,17 +324,23 @@ class SimulatorService:
         mode: str = "index",
         symbol: Optional[str] = None,
         date: Optional[str] = None,
-        blind_mode: bool = False
+        blind_mode: bool = False,
+        market: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Creates and initializes a new gameplay session:
-        - Mode: 'index' (NIFTY, SENSEX, BANKNIFTY) or 'stock' (Liquid FNO stocks)
-        - Selects a random historical day from locally saved dataset library
+        - Mode: 'index' (NIFTY, SENSEX, BANKNIFTY), 'stock' (Liquid FNO stocks), or 'us_futures' (MES, MNQ, ES, NQ)
+        - Selects a historical day from locally saved dataset library or authentic synthesis
         - Returns 5-minute candles, opening bar & initial option chain
         """
-        # Pick instrument based on mode
         mode = mode.lower()
-        if mode == "stock":
+        if market == "US" or mode == "us_futures" or (symbol and symbol.upper() in US_FUTURES_SYMBOLS):
+            mode = "us_futures"
+            if not symbol or symbol.upper() not in US_FUTURES_SYMBOLS:
+                symbol = "MES"
+            else:
+                symbol = symbol.upper()
+        elif mode == "stock":
             if not symbol or symbol.upper() not in INSTRUMENTS:
                 symbol = random.choice(STOCK_SYMBOLS)
             else:
@@ -356,6 +390,11 @@ class SimulatorService:
         return {
             "session_id": session_id,
             "mode": mode,
+            "market": inst.get("market", "IN"),
+            "currency": inst.get("currency", "INR"),
+            "currency_symbol": inst.get("currency_symbol", "₹"),
+            "point_value": inst.get("point_value", 1.0),
+            "margin_per_contract": inst.get("margin_per_contract", None),
             "symbol": symbol,
             "display_name": inst["display_name"],
             "description": inst["description"],
@@ -372,7 +411,8 @@ class SimulatorService:
             "initial_candle": first_candle,
             "initial_chain": initial_chain,
             "available_indices": [INSTRUMENTS[s] for s in INDEX_SYMBOLS],
-            "available_stocks": [INSTRUMENTS[s] for s in STOCK_SYMBOLS]
+            "available_stocks": [INSTRUMENTS[s] for s in STOCK_SYMBOLS],
+            "available_us_futures": [INSTRUMENTS[s] for s in US_FUTURES_SYMBOLS]
         }
 
     def get_option_chain(
@@ -452,12 +492,24 @@ class SimulatorService:
         if GAME_STATE_FILE.exists():
             try:
                 with open(GAME_STATE_FILE, "r") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        data.setdefault("market", "IN")
+                        data.setdefault("inr_starting_balance", 1000000.0)
+                        data.setdefault("inr_current_balance", data.get("current_balance", 1000000.0))
+                        data.setdefault("usd_starting_balance", 50000.0)
+                        data.setdefault("usd_current_balance", 50000.0)
+                        return data
             except Exception:
                 pass
         default_state = {
+            "market": "IN",
             "starting_balance": 1000000.0,
             "current_balance": 1000000.0,
+            "inr_starting_balance": 1000000.0,
+            "inr_current_balance": 1000000.0,
+            "usd_starting_balance": 50000.0,
+            "usd_current_balance": 50000.0,
             "all_time_pnl": 0.0,
             "xp": 0,
             "rank": "Floor Trader",

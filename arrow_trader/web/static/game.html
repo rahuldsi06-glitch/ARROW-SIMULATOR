@@ -29,8 +29,20 @@
         </div>
       </div>
 
-      <!-- GAME MODE TOGGLE -->
-      <div class="segmented-control mode-selector">
+      <!-- MARKET SELECTOR (INDIA vs US PROP FIRM) -->
+      <div class="segmented-control market-selector" id="market-selector">
+        <button id="btn-market-in" class="segment-btn active" data-market="IN" title="Switch to Indian Markets (NSE/BSE)">
+          <span class="segment-icon">🇮🇳</span>
+          <span>India</span>
+        </button>
+        <button id="btn-market-us" class="segment-btn" data-market="US" title="Switch to US Futures & Prop Firm Mode (CME MES / MNQ)">
+          <span class="segment-icon">🇺🇸</span>
+          <span>US Prop Firm</span>
+        </button>
+      </div>
+
+      <!-- GAME MODE TOGGLE (INDIA) -->
+      <div class="segmented-control mode-selector" id="mode-selector-in">
         <button id="btn-mode-index" class="segment-btn active" data-mode="index">
           <span class="segment-icon">📈</span>
           <span>Index Play</span>
@@ -43,12 +55,21 @@
 
       <!-- INSTRUMENT SELECTOR -->
       <div class="instrument-picker">
-        <!-- Index Options -->
+        <!-- Index Options (India) -->
         <div id="index-pills" class="pill-group">
           <button class="pill-btn active" data-symbol="NIFTY">Nifty 50</button>
           <button class="pill-btn" data-symbol="SENSEX">BSE Sensex</button>
           <button class="pill-btn" data-symbol="BANKNIFTY">Bank Nifty</button>
         </div>
+
+        <!-- US CME Futures (US Mode) -->
+        <div id="us-futures-pills" class="pill-group hidden">
+          <button class="pill-btn active" data-symbol="MES" title="Micro E-mini S&P 500 ($5/pt, $50 margin)">MES (Micro S&amp;P)</button>
+          <button class="pill-btn" data-symbol="MNQ" title="Micro E-mini Nasdaq-100 ($2/pt, $50 margin)">MNQ (Micro Nasdaq)</button>
+          <button class="pill-btn" data-symbol="ES" title="E-mini S&P 500 ($50/pt, $500 margin)">ES (E-mini S&amp;P)</button>
+          <button class="pill-btn" data-symbol="NQ" title="E-mini Nasdaq-100 ($20/pt, $500 margin)">NQ (E-mini Nasdaq)</button>
+        </div>
+
         <!-- Stock Selector (shown in stock mode) -->
         <div id="stock-select-wrapper" class="stock-dropdown-wrapper hidden">
           <button id="btn-random-stock" class="btn-action-sm glow-cyan" title="Pick Random Liquid FNO Stock">
@@ -424,11 +445,11 @@
               <span class="fut-card-val highlight" id="fut-ltp">₹ 24,500.00</span>
             </div>
             <div class="fut-card-row">
-              <span class="fut-card-label">MARGIN / LOT (~12.5%)</span>
+              <span class="fut-card-label" id="fut-margin-label">MARGIN / LOT (~12.5%)</span>
               <span class="fut-card-val font-accent" id="fut-margin-per-lot">₹ 76,500.00</span>
             </div>
             <div class="fut-card-row">
-              <span class="fut-card-label">NOTIONAL VAL / LOT</span>
+              <span class="fut-card-label" id="fut-notional-label">NOTIONAL VAL / LOT</span>
               <span class="fut-card-val" id="fut-notional-val">₹ 6,12,500.00</span>
             </div>
           </div>
@@ -674,7 +695,8 @@
       <h2 class="modal-title">TRADING ACCOUNT CAPITAL</h2>
       <p class="modal-subtitle">Configure starting balance and virtual simulator funds</p>
 
-      <div class="capital-preset-grid">
+      <!-- INDIA PRESETS -->
+      <div class="capital-preset-grid" id="capital-presets-in">
         <button class="capital-card" data-cap="100000">
           <span class="cap-name">Rookie Trader</span>
           <span class="cap-amount font-mono">₹ 1,00,000</span>
@@ -692,9 +714,33 @@
         </button>
       </div>
 
+      <!-- US PROP FIRM PRESETS -->
+      <div class="capital-preset-grid hidden" id="capital-presets-us">
+        <button class="capital-card" data-cap="25000">
+          <span class="cap-name">25K Evaluation</span>
+          <span class="cap-amount font-mono">$ 25,000</span>
+          <span class="cap-desc">Max Trailing Drawdown: $1,500 • 3-4 Micros</span>
+        </button>
+        <button class="capital-card active" data-cap="50000">
+          <span class="cap-name">50K Eval (Standard)</span>
+          <span class="cap-amount font-mono">$ 50,000</span>
+          <span class="cap-desc">Max Trailing Drawdown: $2,500 • Topstep / Apex Tier</span>
+        </button>
+        <button class="capital-card" data-cap="100000">
+          <span class="cap-name">100K Evaluation</span>
+          <span class="cap-amount font-mono">$ 100,000</span>
+          <span class="cap-desc">Max Trailing Drawdown: $3,000 • 10-14 Micros</span>
+        </button>
+        <button class="capital-card" data-cap="150000">
+          <span class="cap-name">150K Evaluation</span>
+          <span class="cap-amount font-mono">$ 150,000</span>
+          <span class="cap-desc">Max Trailing Drawdown: $5,000 • High Buying Power</span>
+        </button>
+      </div>
+
       <div class="custom-cap-input-row">
-        <label>Or Enter Custom Capital (₹):</label>
-        <input type="number" id="input-custom-capital" value="1000000" min="10000" step="10000" class="cyber-input font-mono">
+        <label id="custom-cap-label">Or Enter Custom Capital (₹):</label>
+        <input type="number" id="input-custom-capital" value="1000000" min="1000" step="5000" class="cyber-input font-mono">
       </div>
 
       <div class="settings-actions">
