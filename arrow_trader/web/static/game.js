@@ -995,7 +995,8 @@
       if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
 
       const isUS = this.currentMarket === "US";
-      const sym = symbol || (isUS ? "MES" : this.currentSymbol);
+      const sym = symbol || this.currentSymbol || (isUS ? "MES" : "NIFTY");
+      this.currentSymbol = sym;
 
       // Show loading UI
       this.dom.spotPrice.innerText = "Loading...";
@@ -3088,7 +3089,7 @@
 
       // New Mystery Day
       this.dom.btnNewDay.addEventListener("click", () => {
-        this.startNewSession();
+        this.startNewSession(this.currentSymbol);
       });
 
       // Blind Mode Toggle
@@ -3552,7 +3553,7 @@
       // EOD Modal Actions
       this.dom.btnEodNextDay.addEventListener("click", () => {
         this.dom.modalEod.classList.add("hidden");
-        this.startNewSession();
+        this.startNewSession(this.currentSymbol);
       });
       this.dom.btnEodReplayDay.addEventListener("click", () => {
         this.dom.modalEod.classList.add("hidden");

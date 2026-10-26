@@ -126,6 +126,29 @@ class SimulatorService:
         self._trading_dates = fallback_dates
         return self._trading_dates
 
+    def get_us_trading_dates(self) -> List[str]:
+        """
+        Returns a rich list of valid US market weekdays (Mon-Fri) across 2025-2026,
+        excluding standard CME/NYSE trading holidays.
+        """
+        holidays = {
+            "2025-01-01", "2025-01-20", "2025-02-17", "2025-04-18", "2025-05-26", "2025-06-19",
+            "2025-07-04", "2025-09-01", "2025-11-27", "2025-12-25",
+            "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19",
+            "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25"
+        }
+        dates = []
+        start_dt = datetime(2025, 1, 6)
+        end_dt = datetime(2026, 10, 23)
+        curr = start_dt
+        while curr <= end_dt:
+            if curr.weekday() < 5:  # Monday to Friday
+                d_str = curr.strftime("%Y-%m-%d")
+                if d_str not in holidays:
+                    dates.append(d_str)
+            curr += timedelta(days=1)
+        return dates
+
     def parse_iso_timestamp(self, ts_str: str) -> int:
         """Parse Arrow ISO timestamp into Unix seconds timestamp."""
         clean = str(ts_str)
@@ -234,9 +257,14 @@ class SimulatorService:
         gracefully falls back to local data so gameplay never interrupts.
         """
         inst = get_instrument_config(symbol)
+
+        # For US CME Futures, generate fresh high-fidelity US market session directly
+        if inst.get("market") == "US":
+            return self._generate_synthetic_day(symbol, date_str)
+
         cache_path = CACHE_DIR / f"{symbol.upper()}_{date_str}_5min.json"
 
-        # 1. Check local disk cache first
+        # 1. Check local disk cache first (for Indian instruments)
         if not force_refresh and cache_path.exists():
             try:
                 with open(cache_path, "r") as f:
@@ -245,10 +273,6 @@ class SimulatorService:
                         return cached_data
             except Exception as e:
                 logger.warning(f"Error reading local cache {cache_path}: {e}")
-
-        # For US CME Futures, generate high-fidelity US market session directly
-        if inst.get("market") == "US":
-            return self._generate_synthetic_day(symbol, date_str)
 
         # 2. Try remote Arrow API if token is valid
         formatted_candles: List[Dict[str, Any]] = []
@@ -353,16 +377,24 @@ class SimulatorService:
                 symbol = symbol.upper()
 
         inst = get_instrument_config(symbol)
+        is_us = (inst.get("market") == "US") or (mode == "us_futures")
 
-        # Prioritize locally saved dates for this symbol so replay is instantaneous
-        local_days = self.get_available_local_days(symbol)
-        if date and (date in local_days or len(date) == 10):
-            chosen_date = date
-        elif local_days:
-            chosen_date = random.choice(local_days)
+        if is_us:
+            if date and len(date) == 10:
+                chosen_date = date
+            else:
+                us_dates = self.get_us_trading_dates()
+                chosen_date = random.choice(us_dates) if us_dates else "2026-09-15"
         else:
-            valid_dates = self.get_trading_dates()
-            chosen_date = random.choice(valid_dates) if valid_dates else "2026-03-23"
+            # Prioritize locally saved dates for this symbol so replay is instantaneous
+            local_days = self.get_available_local_days(symbol)
+            if date and (date in local_days or len(date) == 10):
+                chosen_date = date
+            elif local_days:
+                chosen_date = random.choice(local_days)
+            else:
+                valid_dates = self.get_trading_dates()
+                chosen_date = random.choice(valid_dates) if valid_dates else "2026-03-23"
 
         # Fetch candles (with guaranteed local fallback)
         candles = self.fetch_day_candles(symbol, chosen_date)

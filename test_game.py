@@ -370,6 +370,19 @@ class TestFastAPIRoutes(unittest.TestCase):
         remainder = round((first_candle["close"] * 100) % 25, 2)
         self.assertIn(remainder, [0.0, 25.0])
 
+        # Verify that clicking New Day / creating sessions produces randomized dates
+        dates_seen = set()
+        for _ in range(8):
+            r = self.client.post("/api/game/session", json={
+                "mode": "us_futures",
+                "market": "US",
+                "symbol": "MES"
+            })
+            self.assertEqual(r.status_code, 200)
+            dates_seen.add(r.json()["session"]["date"])
+        # Should have multiple distinct dates among 8 draws
+        self.assertGreater(len(dates_seen), 1)
+
     def test_us_futures_trade_recording_and_usd_balances(self):
         # 1. Reset US account balance to $50,000
         reset_res = self.client.post("/api/game/reset-account", json={
