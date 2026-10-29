@@ -428,6 +428,180 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(trade_data["new_balance"], 50100.0)
         self.assertEqual(trade_data["state"]["usd_current_balance"], 50100.0)
 
+    def test_prop_firm_setup(self):
+        # Setup Topstep style 50k combine
+        res = self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "drawdown_type": "eod_trailing",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 2
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.json()["prop_firm"]
+        self.assertEqual(data["account_size"], 50000.0)
+        self.assertEqual(data["drawdown_type"], "eod_trailing")
+        self.assertEqual(data["max_drawdown_amount"], 2500.0)
+        self.assertEqual(data["drawdown_floor"], 47500.0)
+        self.assertEqual(data["daily_loss_limit_amount"], 1500.0)
+        self.assertEqual(data["profit_target_amount"], 3000.0)
+        self.assertEqual(data["phase"], "evaluation")
+        self.assertEqual(data["status"], "active")
+
+    def test_prop_firm_eod_trailing_and_lock_at_starting_balance(self):
+        # 1. Setup $50k EOD trailing challenge ($2.5k MDD)
+        self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "drawdown_type": "eod_trailing",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 2
+        })
+
+        # 2. Day 1: +$1,200 profit -> Equity $51,200 -> Trailing floor rises to $48,700
+        d1 = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 1200.0,
+            "day_index": 1,
+            "date": "2026-10-01"
+        })
+        self.assertEqual(d1.status_code, 200)
+        pf1 = d1.json()["prop_firm"]
+        self.assertEqual(pf1["current_equity"], 51200.0)
+        self.assertEqual(pf1["high_water_mark"], 51200.0)
+        self.assertEqual(pf1["drawdown_floor"], 48700.0)  # 51200 - 2500
+        self.assertEqual(pf1["trading_days_count"], 1)
+
+        # 3. Day 2: +$1,500 profit -> Equity $52,700 -> Trailing floor locks at $50,000 (starting balance)
+        d2 = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 1500.0,
+            "day_index": 2,
+            "date": "2026-10-02"
+        })
+        self.assertEqual(d2.status_code, 200)
+        pf2 = d2.json()["prop_firm"]
+        self.assertEqual(pf2["current_equity"], 52700.0)
+        self.assertEqual(pf2["high_water_mark"], 52700.0)
+        self.assertEqual(pf2["drawdown_floor"], 50000.0)  # Locked at starting capital once in profit!
+        self.assertEqual(pf2["trading_days_count"], 2)
+
+        # 4. Day 3: -$500 loss -> Equity drops to $52,200 -> Floor stays locked at $50,000
+        d3 = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": -500.0,
+            "day_index": 3,
+            "date": "2026-10-03"
+        })
+        self.assertEqual(d3.status_code, 200)
+        pf3 = d3.json()["prop_firm"]
+        self.assertEqual(pf3["current_equity"], 52200.0)
+        self.assertEqual(pf3["high_water_mark"], 52700.0)
+        self.assertEqual(pf3["drawdown_floor"], 50000.0)
+
+    def test_prop_firm_pass_and_funded_activation(self):
+        # Setup $50k account with $3,000 target and 2 min days
+        self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "drawdown_type": "eod_trailing",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 2
+        })
+
+        # Day 1: +$1,600
+        self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 1600.0,
+            "day_index": 1,
+            "date": "2026-10-01"
+        })
+
+        # Day 2: +$1,500 -> Total profit $3,100 >= $3,000 target across 2 days
+        d2 = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 1500.0,
+            "day_index": 2,
+            "date": "2026-10-02"
+        })
+        self.assertEqual(d2.status_code, 200)
+        pf = d2.json()["prop_firm"]
+        self.assertEqual(pf["status"], "passed")
+
+        # Promote to Funded Account with 40% consistency rule
+        funded_res = self.client.post("/api/game/propfirm/activate-funded", json={
+            "consistency_rule_pct": 40.0
+        })
+        self.assertEqual(funded_res.status_code, 200)
+        funded_pf = funded_res.json()["prop_firm"]
+        self.assertEqual(funded_pf["phase"], "funded")
+        self.assertEqual(funded_pf["current_equity"], 50000.0)
+        self.assertEqual(funded_pf["consistency_rule_pct"], 40.0)
+        self.assertEqual(funded_pf["drawdown_floor"], 47500.0)
+
+    def test_prop_firm_payout_execution(self):
+        # 1. Setup and activate funded account
+        self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "drawdown_type": "eod_trailing",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 1
+        })
+        self.client.post("/api/game/propfirm/activate-funded", json={
+            "consistency_rule_pct": 50.0
+        })
+
+        # 2. Add profits in funded account via EOD: +$4,000 -> equity $54,000
+        self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 4000.0,
+            "day_index": 1,
+            "date": "2026-10-05"
+        })
+
+        # 3. Request valid payout of $2,000
+        payout_res = self.client.post("/api/game/propfirm/payout", json={
+            "amount": 2000.0
+        })
+        self.assertEqual(payout_res.status_code, 200)
+        payout_data = payout_res.json()["prop_firm"]
+        self.assertEqual(payout_data["current_equity"], 52000.0)
+        self.assertEqual(payout_data["lifetime_payouts"], 2000.0)
+        self.assertEqual(len(payout_data["payout_history"]), 1)
+
+        # 4. Request payout exceeding safety cushion (attempt to withdraw $2,500 when buffer is only $2,000)
+        invalid_res = self.client.post("/api/game/propfirm/payout", json={
+            "amount": 2500.0
+        })
+        self.assertEqual(invalid_res.status_code, 400)
+
+    def test_prop_firm_mdd_breach(self):
+        # Setup $50k account with 5% MDD ($2,500) -> Floor is $47,500
+        self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "drawdown_type": "static",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 1
+        })
+
+        # Day 1: Large loss of -$2,600 -> Equity drops to $47,400 < $47,500 floor
+        res = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": -2600.0,
+            "day_index": 1,
+            "date": "2026-10-06"
+        })
+        self.assertEqual(res.status_code, 200)
+        pf = res.json()["prop_firm"]
+        self.assertEqual(pf["current_equity"], 47400.0)
+        self.assertEqual(pf["status"], "failed")
+        self.assertIn("Max Drawdown Breached", pf["failure_reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -158,6 +158,82 @@
     <!-- LEFT STAGE: TRADINGVIEW CHART & REPLAY DECK -->
     <section class="chart-stage">
 
+      <!-- PROP FIRM HUD BAR (Visible in US Prop Firm Mode) -->
+      <div id="propfirm-hud-bar" class="propfirm-hud-bar hidden">
+        <div class="pf-hud-left">
+          <div class="pf-phase-badge" id="pf-phase-badge">
+            <span class="pf-pulse-dot"></span>
+            <span id="pf-phase-icon">🏆</span>
+            <span id="pf-phase-text">EVALUATION</span>
+          </div>
+          <div class="pf-account-tag" id="pf-account-tag">
+            <span class="pf-tag-label">ACCOUNT</span>
+            <span id="pf-account-size-label" class="pf-tag-val font-mono">$50,000</span>
+          </div>
+        </div>
+
+        <div class="pf-hud-center">
+          <!-- Profit Target Progress -->
+          <div class="pf-metric-card" id="pf-target-card">
+            <div class="pf-card-header">
+              <span class="pf-card-label">PROFIT TARGET</span>
+              <span class="pf-card-val font-mono" id="pf-target-val">$0 / $3,000 (0.0%)</span>
+            </div>
+            <div class="pf-progress-track">
+              <div class="pf-progress-bar" id="pf-target-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Drawdown Floor & Buffer -->
+          <div class="pf-metric-card" id="pf-dd-card">
+            <div class="pf-card-header">
+              <span class="pf-card-label" id="pf-dd-type-label">EOD TRAILING FLOOR</span>
+              <span class="pf-card-val font-mono" id="pf-dd-val">Floor: $47,500</span>
+            </div>
+            <div class="pf-sub-row">
+              <span class="pf-sub-label">Buffer Left:</span>
+              <span class="pf-sub-val font-mono glow-green" id="pf-dd-buffer">$2,500</span>
+            </div>
+          </div>
+
+          <!-- Daily Loss Limit -->
+          <div class="pf-metric-card" id="pf-dll-card">
+            <div class="pf-card-header">
+              <span class="pf-card-label">DAILY LOSS LIMIT</span>
+              <span class="pf-card-val font-mono" id="pf-dll-val">Max -$1,500</span>
+            </div>
+            <div class="pf-sub-row">
+              <span class="pf-sub-label">Today P&amp;L / Left:</span>
+              <span class="pf-sub-val font-mono" id="pf-dll-left">$1,500 Left</span>
+            </div>
+          </div>
+
+          <!-- Days & Consistency -->
+          <div class="pf-metric-card pf-compact-card">
+            <div class="pf-card-header">
+              <span class="pf-card-label">TRADING DAYS</span>
+              <span class="pf-card-val font-mono" id="pf-days-val">Day 1 (Min 2)</span>
+            </div>
+            <div class="pf-sub-row">
+              <span class="pf-sub-label">Max Day Rule:</span>
+              <span class="pf-sub-val font-mono" id="pf-consistency-val">-- (OK)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pf-hud-right">
+          <button id="btn-pf-rules" class="btn-pf-action" title="Configure Prop Firm Rules &amp; Combine Criteria">
+            <span>⚙️ Prop Firm Rules</span>
+          </button>
+          <button id="btn-pf-payout" class="btn-pf-action glow-emerald hidden" title="Request Simulated Payout (Funded Only)">
+            <span>💰 Payout</span>
+          </button>
+          <button id="btn-pf-reset" class="btn-pf-ghost" title="Reset Prop Firm Challenge">
+            <span>🔄 Reset</span>
+          </button>
+        </div>
+      </div>
+
       <!-- CHART TOP TICKER BAR -->
       <div class="chart-ticker-bar">
         <div class="ticker-left">
@@ -241,6 +317,18 @@
             <span class="overlay-entry" id="overlay-entry">Entry: ₹145.20</span>
             <span class="overlay-cur" id="overlay-cur">LTP: ₹162.00</span>
             <span class="overlay-pnl font-mono" id="overlay-pnl">+₹840 (+11.5%)</span>
+          </div>
+        </div>
+
+        <!-- PROPFIRM DAILY LOSS LIMIT SOFT-LOCK BANNER -->
+        <div id="propfirm-dll-banner" class="propfirm-dll-banner hidden">
+          <div class="dll-banner-content">
+            <span class="dll-icon">🛑</span>
+            <div class="dll-text">
+              <strong class="dll-headline">DAILY LOSS LIMIT BREACHED</strong>
+              <p id="dll-banner-sub">Intraday loss has reached the Daily Loss Limit. Trading for this session is locked to protect your evaluation account. Advance to the next market session to continue trading.</p>
+            </div>
+            <button id="btn-dll-next-day" class="btn-primary glow-play">Advance to Next Day ⏩</button>
           </div>
         </div>
       </div>
@@ -847,6 +935,300 @@
         <button id="btn-save-fib-settings" class="btn-primary glow-play">Apply &amp; Save</button>
         <button id="btn-reset-fib-defaults" class="btn-ghost">Reset Defaults</button>
         <button id="btn-cancel-fib-settings" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: PROP FIRM COMBINE / EVALUATION SETUP -->
+  <div id="modal-propfirm-setup" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal propfirm-modal-card">
+      <div class="modal-close-btn" id="btn-close-propfirm-setup">✕</div>
+      <div class="pf-modal-header">
+        <div class="pf-modal-icon">🏆</div>
+        <div>
+          <h2 class="modal-title">PROP FIRM COMBINE SETUP</h2>
+          <p class="modal-subtitle">Configure exact evaluation criteria, drawdown rules, and daily limits</p>
+        </div>
+      </div>
+
+      <!-- Quick Preset Buttons -->
+      <div class="pf-presets-section">
+        <span class="sub-label">POPULAR PROP FIRM PRESETS:</span>
+        <div class="pf-preset-chips">
+          <button class="pf-preset-chip active" data-pf-preset="topstep50k">Topstep 50K</button>
+          <button class="pf-preset-chip" data-pf-preset="apex50k">Apex 50K</button>
+          <button class="pf-preset-chip" data-pf-preset="fundednext50k">FundedNext 50K</button>
+          <button class="pf-preset-chip" data-pf-preset="custom">Custom Combine</button>
+        </div>
+      </div>
+
+      <!-- Account Size Selector -->
+      <div class="pf-field-group">
+        <label class="pf-label">ACCOUNT SIZE:</label>
+        <div class="pf-chips-row" id="pf-size-chips">
+          <button class="pf-chip" data-val="10000">$10,000</button>
+          <button class="pf-chip" data-val="25000">$25,000</button>
+          <button class="pf-chip active" data-val="50000">$50,000</button>
+          <button class="pf-chip" data-val="100000">$100,000</button>
+          <button class="pf-chip" data-val="150000">$150,000</button>
+        </div>
+        <div class="pf-custom-input-row" style="margin-top: 8px;">
+          <span class="sub-label">Custom Capital ($):</span>
+          <input type="number" id="pf-input-custom-capital" value="50000" min="1000" step="5000" class="cyber-input font-mono pf-num-input">
+        </div>
+      </div>
+
+      <!-- Drawdown Model: Static vs EOD Trailing -->
+      <div class="pf-field-group">
+        <label class="pf-label">DRAWDOWN TYPE:</label>
+        <div class="segmented-control" id="pf-dd-type-control" style="width: 100%;">
+          <button class="segment-btn active" id="btn-pf-dd-eod" data-dd="eod_trailing" style="flex: 1;">
+            <span>📈 EOD Trailing Drawdown</span>
+          </button>
+          <button class="segment-btn" id="btn-pf-dd-static" data-dd="static" style="flex: 1;">
+            <span>🛡️ Static Drawdown</span>
+          </button>
+        </div>
+        <p class="pf-help-text" id="pf-dd-type-desc">
+          <b>EOD Trailing:</b> Drawdown floor trails your High Water Mark at the end of each profitable day, and locks at starting balance once in profit.
+        </p>
+      </div>
+
+      <!-- Max Drawdown (MDD) Slider (3% - 10%) -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <label class="pf-label">MAX DRAWDOWN (MDD):</label>
+          <span class="pf-slider-readout font-mono" id="pf-mdd-readout">5.0% ($2,500)</span>
+        </div>
+        <input type="range" id="pf-slider-mdd" min="3" max="10" step="0.5" value="5" class="cyber-slider">
+        <div class="pf-slider-limits">
+          <span>3% (Tight)</span>
+          <span id="pf-mdd-floor-preview">Drawdown Floor: $47,500</span>
+          <span>10% (Wide)</span>
+        </div>
+      </div>
+
+      <!-- Daily Loss Limit (DLL) Slider (2% - 5%) -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <div class="pf-toggle-wrapper">
+            <input type="checkbox" id="pf-chk-dll" checked>
+            <label for="pf-chk-dll" class="pf-label" style="margin: 0; cursor: pointer;">DAILY LOSS LIMIT (DLL):</label>
+          </div>
+          <span class="pf-slider-readout font-mono" id="pf-dll-readout">3.0% ($1,500)</span>
+        </div>
+        <input type="range" id="pf-slider-dll" min="2" max="5" step="0.5" value="3" class="cyber-slider">
+        <div class="pf-slider-limits">
+          <span>2% ($1,000)</span>
+          <span id="pf-dll-desc">Soft-locks trading for the day if hit</span>
+          <span>5% ($2,500)</span>
+        </div>
+      </div>
+
+      <!-- Profit Target Slider (4% - 12%) -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <label class="pf-label">PROFIT TARGET:</label>
+          <span class="pf-slider-readout font-mono glow-green" id="pf-target-readout">6.0% ($3,000)</span>
+        </div>
+        <input type="range" id="pf-slider-target" min="4" max="12" step="0.5" value="6" class="cyber-slider">
+        <div class="pf-slider-limits">
+          <span>4% ($2,000)</span>
+          <span id="pf-target-goal-preview">Target Balance: $53,000</span>
+          <span>12% ($6,000)</span>
+        </div>
+      </div>
+
+      <!-- Min Trading Days -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <label class="pf-label">MINIMUM TRADING DAYS:</label>
+          <span class="pf-slider-readout font-mono" id="pf-mindays-readout">2 Days</span>
+        </div>
+        <input type="range" id="pf-slider-mindays" min="1" max="10" step="1" value="2" class="cyber-slider">
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="settings-actions">
+        <button id="btn-save-propfirm-setup" class="btn-primary glow-play">Start Combine Challenge 🚀</button>
+        <button id="btn-cancel-propfirm-setup" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: PROP FIRM CHALLENGE FAILED -->
+  <div id="modal-propfirm-failed" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal pf-failed-card">
+      <div class="modal-close-btn" id="btn-close-propfirm-failed">✕</div>
+      <div class="pf-status-badge pf-busted-glow">💀 COMBINE FAILED</div>
+      <h2 class="modal-title" style="color: #ff3366; margin-top: 10px;">MAX DRAWDOWN BREACHED</h2>
+      <p class="modal-subtitle" id="pf-failed-msg">Account equity has breached the maximum drawdown threshold.</p>
+
+      <!-- Autopsy Card -->
+      <div class="pf-autopsy-box">
+        <h4 class="pf-autopsy-title">AUTOPSY REPORT</h4>
+        <div class="pf-autopsy-grid">
+          <div class="pf-autopsy-item">
+            <span class="label">Starting Account</span>
+            <span class="val font-mono" id="pf-fail-start-bal">$50,000</span>
+          </div>
+          <div class="pf-autopsy-item">
+            <span class="label">Peak Balance (HWM)</span>
+            <span class="val font-mono" id="pf-fail-hwm">$51,400</span>
+          </div>
+          <div class="pf-autopsy-item">
+            <span class="label">Drawdown Floor</span>
+            <span class="val font-mono glow-red" id="pf-fail-floor">$48,900</span>
+          </div>
+          <div class="pf-autopsy-item">
+            <span class="label">Final Equity</span>
+            <span class="val font-mono glow-red" id="pf-fail-equity">$48,850</span>
+          </div>
+          <div class="pf-autopsy-item">
+            <span class="label">Days Traded</span>
+            <span class="val font-mono" id="pf-fail-days">3 Days</span>
+          </div>
+          <div class="pf-autopsy-item">
+            <span class="label">Drawdown Model</span>
+            <span class="val font-mono" id="pf-fail-dd-type">EOD Trailing</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-pf-retry" class="btn-primary glow-play">Reset &amp; Try Again 🔄</button>
+        <button id="btn-pf-inspect-chart" class="btn-secondary">Review Chart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: PROP FIRM CHALLENGE PASSED / FUNDED PROMOTION -->
+  <div id="modal-propfirm-passed" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal pf-passed-card">
+      <div class="modal-close-btn" id="btn-close-propfirm-passed">✕</div>
+      <div class="pf-status-badge pf-passed-glow">🏆 CHALLENGE CLEARED!</div>
+      <h2 class="modal-title" style="color: #00f59b; margin-top: 10px;">EVALUATION COMPLETED!</h2>
+      <p class="modal-subtitle">You have achieved the profit target while maintaining ironclad risk management.</p>
+
+      <!-- Victory Summary Grid -->
+      <div class="pf-victory-grid">
+        <div class="pf-vic-item">
+          <span class="label">Profit Target Achieved</span>
+          <span class="val font-mono glow-green" id="pf-pass-profit">+$3,250.00</span>
+        </div>
+        <div class="pf-vic-item">
+          <span class="label">Days Traded</span>
+          <span class="val font-mono" id="pf-pass-days">3 Days</span>
+        </div>
+        <div class="pf-vic-item">
+          <span class="label">Best Single Day</span>
+          <span class="val font-mono" id="pf-pass-best-day">$1,200 (36.9%)</span>
+        </div>
+      </div>
+
+      <!-- Funded Account Consistency Rule Selection -->
+      <div class="pf-funded-select-section">
+        <h4 class="pf-section-title">CHOOSE FUNDED ACCOUNT CONSISTENCY LEVEL:</h4>
+        <p class="pf-section-desc">Select the consistency threshold you want to practice under before taking payouts:</p>
+
+        <div class="pf-consistency-options" id="pf-consistency-options">
+          <label class="pf-consistency-card">
+            <input type="radio" name="pf-consistency-choice" value="0">
+            <div class="pf-cons-info">
+              <span class="pf-cons-title">No Consistency Rule</span>
+              <span class="pf-cons-desc">Trade freely with no maximum single-day profit cap for payouts.</span>
+            </div>
+          </label>
+          <label class="pf-consistency-card active">
+            <input type="radio" name="pf-consistency-choice" value="50">
+            <div class="pf-cons-info">
+              <span class="pf-cons-title">50% Consistency Rule (Apex Standard)</span>
+              <span class="pf-cons-desc">No single trading day can account for more than 50% of your total profit.</span>
+            </div>
+          </label>
+          <label class="pf-consistency-card">
+            <input type="radio" name="pf-consistency-choice" value="40" checked>
+            <div class="pf-cons-info">
+              <span class="pf-cons-title">40% Consistency Rule (Topstep Standard)</span>
+              <span class="pf-cons-desc">No single day can exceed 40% of total profit. Standard professional benchmark.</span>
+            </div>
+          </label>
+          <label class="pf-consistency-card">
+            <input type="radio" name="pf-consistency-choice" value="30">
+            <div class="pf-cons-info">
+              <span class="pf-cons-title">30% Consistency Rule (Conservative)</span>
+              <span class="pf-cons-desc">Strict consistency requiring evenly distributed trading profits across sessions.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-activate-funded" class="btn-primary glow-emerald">🚀 ACTIVATE FUNDED ACCOUNT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: PROP FIRM PAYOUT REQUEST -->
+  <div id="modal-propfirm-payout" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal pf-payout-card">
+      <div class="modal-close-btn" id="btn-close-propfirm-payout">✕</div>
+      <div class="pf-modal-header">
+        <div class="pf-modal-icon">💰</div>
+        <div>
+          <h2 class="modal-title">REQUEST SIMULATED PAYOUT</h2>
+          <p class="modal-subtitle">Withdraw trading profits earned in your Funded Account</p>
+        </div>
+      </div>
+
+      <!-- Funded Account Balance Status -->
+      <div class="pf-payout-stats">
+        <div class="pf-payout-stat">
+          <span class="label">Current Funded Equity</span>
+          <span class="val font-mono" id="pf-payout-cur-bal">$54,200</span>
+        </div>
+        <div class="pf-payout-stat">
+          <span class="label">Safety Buffer (Locked)</span>
+          <span class="val font-mono" id="pf-payout-safety-buf">$50,000</span>
+        </div>
+        <div class="pf-payout-stat">
+          <span class="label">Available Profit</span>
+          <span class="val font-mono glow-green" id="pf-payout-avail-profit">$4,200</span>
+        </div>
+      </div>
+
+      <!-- Rules Verification Check -->
+      <div class="pf-compliance-box" id="pf-payout-compliance">
+        <div class="pf-check-row" id="pf-chk-consistency-row">
+          <span class="check-icon" id="pf-chk-cons-icon">✅</span>
+          <span class="check-text" id="pf-chk-cons-text">Consistency Rule: 35.2% &le; 40.0% Max Day</span>
+        </div>
+        <div class="pf-check-row" id="pf-chk-buffer-row">
+          <span class="check-icon" id="pf-chk-buf-icon">✅</span>
+          <span class="check-text" id="pf-chk-buf-text">Profits exist above starting safety cushion</span>
+        </div>
+      </div>
+
+      <!-- Payout Input -->
+      <div class="pf-field-group" style="margin-top: 16px;">
+        <label class="pf-label">WITHDRAWAL AMOUNT ($):</label>
+        <div class="pf-payout-input-row">
+          <input type="number" id="pf-input-payout-amount" value="2000" min="100" step="500" class="cyber-input font-mono pf-num-input">
+          <button id="btn-pf-payout-max" class="btn-micro-chart">Withdraw Max</button>
+        </div>
+      </div>
+
+      <!-- Payout History -->
+      <div class="pf-payout-history-section">
+        <span class="sub-label">LIFETIME PAYOUTS: <b id="pf-lifetime-payouts" class="glow-green font-mono">$0.00</b></span>
+        <div class="pf-payout-list" id="pf-payout-list">
+          <div class="empty-hint">No payouts requested yet.</div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-confirm-payout" class="btn-primary glow-emerald">Confirm Payout Request 💸</button>
+        <button id="btn-cancel-payout" class="btn-secondary">Cancel</button>
       </div>
     </div>
   </div>

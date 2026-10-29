@@ -272,6 +272,9 @@
       this.rank = "Floor Trader";
       this.tradeJournal = [];
 
+      // Exact Prop Firm Combine / Evaluation State
+      this.propFirm = this.getDefaultPropFirmState();
+
       // Trading Order Desk state
       this.instrumentType = "options"; // 'options' or 'futures'
       this.selectedFutDirection = "LONG"; // 'LONG' or 'SHORT'
@@ -544,6 +547,91 @@
       this.dom.fibLevelsList = document.getElementById("fib-levels-list");
       this.dom.fibOptPrices = document.getElementById("fib-opt-prices");
       this.dom.fibOptLabels = document.getElementById("fib-opt-labels");
+
+      this.cachePropFirmDomElements();
+    }
+
+    cachePropFirmDomElements() {
+      // Prop Firm HUD & Controls
+      this.dom.propFirmHudBar = document.getElementById("propfirm-hud-bar");
+      this.dom.pfPhaseBadge = document.getElementById("pf-phase-badge");
+      this.dom.pfPhaseText = document.getElementById("pf-phase-text");
+      this.dom.pfPhaseIcon = document.getElementById("pf-phase-icon");
+      this.dom.pfAccountSizeLabel = document.getElementById("pf-account-size-label");
+      this.dom.pfTargetVal = document.getElementById("pf-target-val");
+      this.dom.pfTargetBar = document.getElementById("pf-target-bar");
+      this.dom.pfDdTypeLabel = document.getElementById("pf-dd-type-label");
+      this.dom.pfDdVal = document.getElementById("pf-dd-val");
+      this.dom.pfDdBuffer = document.getElementById("pf-dd-buffer");
+      this.dom.pfDllVal = document.getElementById("pf-dll-val");
+      this.dom.pfDllLeft = document.getElementById("pf-dll-left");
+      this.dom.pfDaysVal = document.getElementById("pf-days-val");
+      this.dom.pfConsistencyVal = document.getElementById("pf-consistency-val");
+      this.dom.btnPfRules = document.getElementById("btn-pf-rules");
+      this.dom.btnPfPayout = document.getElementById("btn-pf-payout");
+      this.dom.btnPfReset = document.getElementById("btn-pf-reset");
+
+      // DLL Soft-Lock Banner
+      this.dom.propFirmDllBanner = document.getElementById("propfirm-dll-banner");
+      this.dom.dllBannerSub = document.getElementById("dll-banner-sub");
+      this.dom.btnDllNextDay = document.getElementById("btn-dll-next-day");
+
+      // Modal: Prop Firm Setup
+      this.dom.modalPropFirmSetup = document.getElementById("modal-propfirm-setup");
+      this.dom.btnClosePropFirmSetup = document.getElementById("btn-close-propfirm-setup");
+      this.dom.btnCancelPropFirmSetup = document.getElementById("btn-cancel-propfirm-setup");
+      this.dom.btnSavePropFirmSetup = document.getElementById("btn-save-propfirm-setup");
+      this.dom.pfSizeChips = document.getElementById("pf-size-chips");
+      this.dom.pfInputCustomCapital = document.getElementById("pf-input-custom-capital");
+      this.dom.btnPfDdEod = document.getElementById("btn-pf-dd-eod");
+      this.dom.btnPfDdStatic = document.getElementById("btn-pf-dd-static");
+      this.dom.pfDdTypeDesc = document.getElementById("pf-dd-type-desc");
+      this.dom.pfSliderMdd = document.getElementById("pf-slider-mdd");
+      this.dom.pfMddReadout = document.getElementById("pf-mdd-readout");
+      this.dom.pfMddFloorPreview = document.getElementById("pf-mdd-floor-preview");
+      this.dom.pfChkDll = document.getElementById("pf-chk-dll");
+      this.dom.pfSliderDll = document.getElementById("pf-slider-dll");
+      this.dom.pfDllReadout = document.getElementById("pf-dll-readout");
+      this.dom.pfSliderTarget = document.getElementById("pf-slider-target");
+      this.dom.pfTargetReadout = document.getElementById("pf-target-readout");
+      this.dom.pfTargetGoalPreview = document.getElementById("pf-target-goal-preview");
+      this.dom.pfSliderMinDays = document.getElementById("pf-slider-mindays");
+      this.dom.pfMinDaysReadout = document.getElementById("pf-mindays-readout");
+
+      // Modal: Failed
+      this.dom.modalPropFirmFailed = document.getElementById("modal-propfirm-failed");
+      this.dom.btnClosePropFirmFailed = document.getElementById("btn-close-propfirm-failed");
+      this.dom.btnPfRetry = document.getElementById("btn-pf-retry");
+      this.dom.btnPfInspectChart = document.getElementById("btn-pf-inspect-chart");
+      this.dom.pfFailStartBal = document.getElementById("pf-fail-start-bal");
+      this.dom.pfFailHwm = document.getElementById("pf-fail-hwm");
+      this.dom.pfFailFloor = document.getElementById("pf-fail-floor");
+      this.dom.pfFailEquity = document.getElementById("pf-fail-equity");
+      this.dom.pfFailDays = document.getElementById("pf-fail-days");
+      this.dom.pfFailDdType = document.getElementById("pf-fail-dd-type");
+
+      // Modal: Passed / Funded
+      this.dom.modalPropFirmPassed = document.getElementById("modal-propfirm-passed");
+      this.dom.btnClosePropFirmPassed = document.getElementById("btn-close-propfirm-passed");
+      this.dom.btnActivateFunded = document.getElementById("btn-activate-funded");
+      this.dom.pfPassProfit = document.getElementById("pf-pass-profit");
+      this.dom.pfPassDays = document.getElementById("pf-pass-days");
+      this.dom.pfPassBestDay = document.getElementById("pf-pass-best-day");
+
+      // Modal: Payout
+      this.dom.modalPropFirmPayout = document.getElementById("modal-propfirm-payout");
+      this.dom.btnClosePropFirmPayout = document.getElementById("btn-close-propfirm-payout");
+      this.dom.btnCancelPayout = document.getElementById("btn-cancel-payout");
+      this.dom.btnConfirmPayout = document.getElementById("btn-confirm-payout");
+      this.dom.btnPfPayoutMax = document.getElementById("btn-pf-payout-max");
+      this.dom.pfPayoutCurBal = document.getElementById("pf-payout-cur-bal");
+      this.dom.pfPayoutSafetyBuf = document.getElementById("pf-payout-safety-buf");
+      this.dom.pfPayoutAvailProfit = document.getElementById("pf-payout-avail-profit");
+      this.dom.pfInputPayoutAmount = document.getElementById("pf-input-payout-amount");
+      this.dom.pfLifetimePayouts = document.getElementById("pf-lifetime-payouts");
+      this.dom.pfPayoutList = document.getElementById("pf-payout-list");
+      this.dom.pfChkConsIcon = document.getElementById("pf-chk-cons-icon");
+      this.dom.pfChkConsText = document.getElementById("pf-chk-cons-text");
     }
 
     syncMarketUI() {
@@ -577,7 +665,17 @@
         if (this.dom.summaryPriceLabel) this.dom.summaryPriceLabel.innerText = "INDEX PRICE";
         if (this.dom.summaryCapitalLabel) this.dom.summaryCapitalLabel.innerText = "PROP MARGIN";
         if (this.dom.summaryDeltaLabel) this.dom.summaryDeltaLabel.innerText = "POINT VAL";
+        if (this.dom.propFirmHudBar) {
+          this.dom.propFirmHudBar.classList.remove("hidden");
+          this.renderPropFirmHUD();
+        }
       } else {
+        if (this.dom.propFirmHudBar) {
+          this.dom.propFirmHudBar.classList.add("hidden");
+        }
+        if (this.dom.propFirmDllBanner) {
+          this.dom.propFirmDllBanner.classList.add("hidden");
+        }
         if (this.dom.modeSelectorIn) this.dom.modeSelectorIn.classList.remove("hidden");
         if (this.dom.indexPills) this.dom.indexPills.classList.remove("hidden");
         if (this.dom.stockSelectWrapper) this.dom.stockSelectWrapper.classList.add("hidden");
@@ -681,6 +779,9 @@
             this.audio.enabled = s.audioEnabled;
             this.updateAudioButtonState();
           }
+          if (s.propFirm) {
+            this.propFirm = Object.assign(this.getDefaultPropFirmState(), s.propFirm);
+          }
         }
       } catch (e) {}
       this.dayStartCapital = this.currentCapital;
@@ -707,7 +808,8 @@
           usdCurrentCapital: this.usdCurrentCapital,
           xp: this.xp,
           rank: this.rank,
-          audioEnabled: this.audio.enabled
+          audioEnabled: this.audio.enabled,
+          propFirm: this.propFirm
         };
         localStorage.setItem("arrow_game_state", JSON.stringify(state));
       } catch (e) {}
@@ -730,6 +832,9 @@
               this.startingCapital = this.currentMarket === "US" ? this.usdStartingCapital : this.inrStartingCapital;
               this.currentCapital = this.currentMarket === "US" ? this.usdCurrentCapital : this.inrCurrentCapital;
               this.dayStartCapital = this.currentCapital;
+            }
+            if (st.prop_firm && !hasLocal) {
+              this.propFirm = Object.assign(this.getDefaultPropFirmState(), st.prop_firm);
             }
             if (st.xp) this.xp = st.xp || this.xp;
             if (st.rank) this.rank = st.rank || this.rank;
@@ -979,6 +1084,14 @@
       this.dayStartCapital = this.currentCapital;
       this.dayPnL = 0.0;
       this.tradeJournal = [];
+
+      // Reset intraday DLL state for new day in US mode
+      if (this.currentMarket === "US" && this.propFirm) {
+        this.propFirm.day_dll_breached = false;
+        this.propFirm.day_start_equity = this.currentCapital;
+        if (this.dom.propFirmDllBanner) this.dom.propFirmDllBanner.classList.add("hidden");
+      }
+
       this.renderJournal();
       this.updateHUD();
       this.saveState();
@@ -1908,6 +2021,18 @@
         return;
       }
 
+      if (this.currentMarket === "US" && this.propFirm) {
+        if (this.propFirm.phase === "failed" || this.propFirm.status === "failed") {
+          this.showPropFirmFailedModal(this.currentCapital);
+          return;
+        }
+        if (this.propFirm.day_dll_breached) {
+          if (this.dom.propFirmDllBanner) this.dom.propFirmDllBanner.classList.remove("hidden");
+          alert("Daily Loss Limit reached for today. Trading is locked for this session. Advance to Next Day to continue trading!");
+          return;
+        }
+      }
+
       const candle = this.session.candles[this.currentBarIndex];
       const spot = candle.close;
       const isUS = this.currentMarket === "US" || this.session.market === "US";
@@ -2643,6 +2768,15 @@
           ? Math.round((pos.pnl / pos.marginBlocked) * 1000) / 10
           : 0;
 
+        // Check Prop Firm Intraday Risk (MDD and DLL)
+        if (this.currentMarket === "US" && this.propFirm) {
+          const liveEquity = this.currentCapital + pos.marginBlocked + pos.pnl;
+          const liveDayPnl = this.dayPnL + pos.pnl;
+          if (this.checkPropFirmIntradayRisk(liveEquity, liveDayPnl)) {
+            return;
+          }
+        }
+
         this.renderActivePositionDeck();
         this.updateHUD();
         return;
@@ -2826,6 +2960,12 @@
       this.dom.positionDeck.classList.add("hidden");
       this.dom.tradeChartOverlay.classList.add("hidden");
 
+      // Check Prop Firm Intraday Risk upon trade close
+      if (this.currentMarket === "US" && this.propFirm) {
+        this.propFirm.current_equity = this.currentCapital;
+        this.checkPropFirmIntradayRisk(this.currentCapital, this.dayPnL);
+      }
+
       // Save & Update HUD
       this.updateHUD();
       this.saveState();
@@ -2965,6 +3105,11 @@
       this.dom.hudRankBadge.innerText = this.rank;
       const xpProgress = Math.min(100, Math.round((this.xp % 1000) / 10));
       this.dom.hudXpBar.style.width = `${xpProgress}%`;
+
+      // Update Prop Firm HUD in US market mode
+      if (this.currentMarket === "US") {
+        this.renderPropFirmHUD(totalEquity, liveDayPnL);
+      }
     }
 
     updateAudioButtonState() {
@@ -3014,6 +3159,10 @@
 
       this.saveState();
       this.dom.modalEod.classList.remove("hidden");
+
+      if (this.currentMarket === "US" && this.propFirm) {
+        this.processPropFirmEOD();
+      }
     }
 
     // ========================================================================
@@ -3564,6 +3713,9 @@
         this.dom.appFooterDrawer.classList.add("expanded");
       });
 
+      // Prop Firm Combine Event Bindings
+      this.bindPropFirmEvents();
+
       // Keyboard Shortcuts
       window.addEventListener("keydown", (e) => {
         // Ignore if user typing in input
@@ -3593,6 +3745,780 @@
           this.cancelChartAction();
         }
       });
+    }
+
+    // ========================================================================
+    // PROP FIRM COMBINE / EVALUATION METHODS
+    // ========================================================================
+
+    getDefaultPropFirmState() {
+      return {
+        enabled: true,
+        phase: "evaluation", // 'evaluation' | 'funded' | 'failed'
+        status: "in_progress", // 'in_progress' | 'target_reached' | 'passed' | 'failed'
+        account_size: 50000.0,
+        current_equity: 50000.0,
+        high_water_mark: 50000.0,
+        drawdown_type: "eod_trailing", // 'eod_trailing' | 'static'
+        max_drawdown_pct: 5.0,
+        max_drawdown_amount: 2500.0,
+        drawdown_floor: 47500.0,
+        initial_drawdown_floor: 47500.0,
+        daily_loss_limit_enabled: true,
+        daily_loss_limit_pct: 3.0,
+        daily_loss_limit_amount: 1500.0,
+        profit_target_pct: 6.0,
+        profit_target_amount: 3000.0,
+        min_trading_days: 2,
+        trading_days_count: 0,
+        day_start_equity: 50000.0,
+        day_pnl: 0.0,
+        day_dll_breached: false,
+        consistency_rule_pct: 40.0,
+        largest_day_profit: 0.0,
+        largest_day_pct: 0.0,
+        consistency_satisfied: true,
+        daily_history: [],
+        payout_history: [],
+        lifetime_payouts: 0.0
+      };
+    }
+
+    renderPropFirmHUD(liveEquity, liveDayPnL) {
+      if (this.currentMarket !== "US" || !this.dom.propFirmHudBar) {
+        if (this.dom.propFirmHudBar) this.dom.propFirmHudBar.classList.add("hidden");
+        return;
+      }
+
+      this.dom.propFirmHudBar.classList.remove("hidden");
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+      const equity = (typeof liveEquity === "number" && !isNaN(liveEquity)) ? liveEquity : this.currentCapital;
+      const todayPnl = (typeof liveDayPnL === "number" && !isNaN(liveDayPnL)) ? liveDayPnL : this.dayPnL;
+
+      // Phase badge styling
+      const phase = pf.phase || "evaluation";
+      this.dom.propFirmHudBar.classList.toggle("funded-active", phase === "funded");
+      this.dom.propFirmHudBar.classList.toggle("busted-active", phase === "failed");
+
+      if (this.dom.pfPhaseBadge) {
+        this.dom.pfPhaseBadge.className = `pf-phase-badge ${phase}`;
+      }
+      if (this.dom.pfPhaseText) {
+        this.dom.pfPhaseText.innerText = phase === "funded" ? "FUNDED ACCOUNT" : (phase === "failed" ? "BUSTED / FAILED" : "EVALUATION");
+      }
+      if (this.dom.pfPhaseIcon) {
+        this.dom.pfPhaseIcon.innerText = phase === "funded" ? "🟢" : (phase === "failed" ? "💀" : "🏆");
+      }
+
+      // Account size label
+      if (this.dom.pfAccountSizeLabel) {
+        this.dom.pfAccountSizeLabel.innerText = this.formatCurrency(pf.account_size, true, 0);
+      }
+
+      // Profit target progress
+      if (this.dom.pfTargetVal && this.dom.pfTargetBar) {
+        if (phase === "funded") {
+          const withdrawable = Math.max(0, equity - pf.account_size);
+          this.dom.pfTargetVal.innerText = `Withdrawable: ${this.formatCurrency(withdrawable, true, 0)}`;
+          this.dom.pfTargetBar.style.width = "100%";
+        } else {
+          const profitEarned = Math.max(0, equity - pf.account_size);
+          const target = pf.profit_target_amount || (pf.account_size * 0.06);
+          const pct = Math.min(100, Math.max(0, (profitEarned / target) * 100));
+          this.dom.pfTargetVal.innerText = `${this.formatCurrency(profitEarned, true, 0)} / ${this.formatCurrency(target, true, 0)} (${pct.toFixed(1)}%)`;
+          this.dom.pfTargetBar.style.width = `${pct}%`;
+        }
+      }
+
+      // Drawdown Floor & Buffer
+      const floor = pf.drawdown_floor || (pf.account_size - (pf.max_drawdown_amount || 2500));
+      const buffer = Math.round((equity - floor) * 100) / 100;
+      if (this.dom.pfDdTypeLabel) {
+        this.dom.pfDdTypeLabel.innerText = pf.drawdown_type === "static" ? "STATIC DD FLOOR" : "EOD TRAILING FLOOR";
+      }
+      if (this.dom.pfDdVal) {
+        this.dom.pfDdVal.innerText = `Floor: ${this.formatCurrency(floor, true, 0)}`;
+      }
+      if (this.dom.pfDdBuffer) {
+        this.dom.pfDdBuffer.innerText = this.formatCurrency(Math.max(0, buffer));
+        this.dom.pfDdBuffer.className = `pf-sub-val font-mono ${buffer < 500 ? "glow-red" : "glow-green"}`;
+      }
+
+      // Daily Loss Limit
+      if (this.dom.pfDllVal && this.dom.pfDllLeft) {
+        if (!pf.daily_loss_limit_enabled) {
+          this.dom.pfDllVal.innerText = "No DLL (Apex)";
+          this.dom.pfDllLeft.innerText = "Unlimited";
+          this.dom.pfDllLeft.className = "pf-sub-val font-mono";
+        } else {
+          const maxLoss = pf.daily_loss_limit_amount || 1500;
+          const left = Math.round((maxLoss + todayPnl) * 100) / 100;
+          this.dom.pfDllVal.innerText = `Max -${this.formatCurrency(maxLoss, true, 0)}`;
+          this.dom.pfDllLeft.innerText = `${this.formatCurrency(Math.max(0, left))} Left`;
+          this.dom.pfDllLeft.className = `pf-sub-val font-mono ${left < 300 ? "glow-red" : ""}`;
+        }
+      }
+
+      // Days Traded & Consistency
+      if (this.dom.pfDaysVal) {
+        const days = pf.trading_days_count || 0;
+        const minDays = pf.min_trading_days || 2;
+        this.dom.pfDaysVal.innerText = `Day ${days} (Min ${minDays})`;
+      }
+      if (this.dom.pfConsistencyVal) {
+        if (!pf.consistency_rule_pct || pf.consistency_rule_pct === 0) {
+          this.dom.pfConsistencyVal.innerText = "No Rule (OK)";
+          this.dom.pfConsistencyVal.className = "pf-sub-val font-mono";
+        } else {
+          const lPct = pf.largest_day_pct || 0;
+          const pass = lPct <= pf.consistency_rule_pct;
+          this.dom.pfConsistencyVal.innerText = `${lPct.toFixed(1)}% (${pass ? "OK" : "High"})`;
+          this.dom.pfConsistencyVal.className = `pf-sub-val font-mono ${pass ? "glow-green" : "glow-red"}`;
+        }
+      }
+
+      // Payout button visibility (only in funded phase)
+      if (this.dom.btnPfPayout) {
+        this.dom.btnPfPayout.classList.toggle("hidden", phase !== "funded");
+      }
+    }
+
+    checkPropFirmIntradayRisk(liveEquity, liveDayPnL) {
+      if (this.currentMarket !== "US" || !this.propFirm) return false;
+
+      const pf = this.propFirm;
+      const equity = (typeof liveEquity === "number" && !isNaN(liveEquity)) ? liveEquity : this.currentCapital;
+      const todayPnl = (typeof liveDayPnL === "number" && !isNaN(liveDayPnL)) ? liveDayPnL : this.dayPnL;
+
+      // 1. Max Drawdown Floor Breach (Hard Stop / Failure)
+      if (equity <= pf.drawdown_floor) {
+        if (this.activePosition) {
+          this.closePosition(this.activePosition.currentPrice, "MDD_BREACH_AUTO_EXIT", this.session ? this.session.candles[this.currentBarIndex] : null);
+        }
+        pf.phase = "failed";
+        pf.status = "failed";
+        this.renderPropFirmHUD(equity, todayPnl);
+        this.showPropFirmFailedModal(equity);
+        this.saveState();
+        return true;
+      }
+
+      // 2. Daily Loss Limit Breach (Soft Stop / Locks Day)
+      if (pf.daily_loss_limit_enabled && todayPnl <= -pf.daily_loss_limit_amount) {
+        if (this.activePosition) {
+          this.closePosition(this.activePosition.currentPrice, "DLL_BREACH_AUTO_EXIT", this.session ? this.session.candles[this.currentBarIndex] : null);
+        }
+        pf.day_dll_breached = true;
+        if (this.dom.propFirmDllBanner) {
+          if (this.dom.dllBannerSub) {
+            this.dom.dllBannerSub.innerHTML = `Today's loss reached <b>-${this.formatCurrency(Math.abs(todayPnl))}</b> (Limit: -${this.formatCurrency(pf.daily_loss_limit_amount)}). Trading for this session is locked to protect your account. Click <b>"Advance to Next Day"</b> to trade the next market session.`;
+          }
+          this.dom.propFirmDllBanner.classList.remove("hidden");
+        }
+        this.renderPropFirmHUD(equity, todayPnl);
+        this.saveState();
+        return true;
+      }
+
+      return false;
+    }
+
+    async processPropFirmEOD() {
+      if (this.currentMarket !== "US" || !this.propFirm) return;
+
+      const dateStr = this.session ? (this.session.date || "") : "";
+      try {
+        const res = await fetch("/api/game/propfirm/eod", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            day_pnl: this.dayPnL,
+            day_index: (this.propFirm.trading_days_count || 0) + 1,
+            date: dateStr
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.propFirm = data.prop_firm;
+          this.saveState();
+          this.renderPropFirmHUD();
+
+          if (this.propFirm.status === "passed" || this.propFirm.phase === "passed") {
+            this.showPropFirmPassedModal();
+          } else if (this.propFirm.status === "failed") {
+            this.showPropFirmFailedModal(this.currentCapital);
+          }
+        }
+      } catch (e) {
+        console.warn("Prop firm EOD call fallback:", e);
+        this.propFirm.trading_days_count = (this.propFirm.trading_days_count || 0) + 1;
+        this.propFirm.current_equity = this.currentCapital;
+        if (this.currentCapital > (this.propFirm.high_water_mark || this.propFirm.account_size)) {
+          this.propFirm.high_water_mark = this.currentCapital;
+          if (this.propFirm.drawdown_type === "eod_trailing") {
+            const trailed = this.propFirm.high_water_mark - this.propFirm.max_drawdown_amount;
+            this.propFirm.drawdown_floor = Math.max(this.propFirm.drawdown_floor, Math.min(this.propFirm.account_size, trailed));
+          }
+        }
+        this.saveState();
+        this.renderPropFirmHUD();
+      }
+    }
+
+    showPropFirmFailedModal(equity) {
+      if (!this.dom.modalPropFirmFailed) return;
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+
+      if (this.dom.pfFailStartBal) this.dom.pfFailStartBal.innerText = this.formatCurrency(pf.account_size);
+      if (this.dom.pfFailHwm) this.dom.pfFailHwm.innerText = this.formatCurrency(pf.high_water_mark || pf.account_size);
+      if (this.dom.pfFailFloor) this.dom.pfFailFloor.innerText = this.formatCurrency(pf.drawdown_floor);
+      if (this.dom.pfFailEquity) this.dom.pfFailEquity.innerText = this.formatCurrency(equity || this.currentCapital);
+      if (this.dom.pfFailDays) this.dom.pfFailDays.innerText = `${pf.trading_days_count || 1} Days`;
+      if (this.dom.pfFailDdType) this.dom.pfFailDdType.innerText = pf.drawdown_type === "static" ? "Static Drawdown" : "EOD Trailing";
+
+      this.dom.modalPropFirmFailed.classList.remove("hidden");
+      this.audio.playStopLossHit();
+    }
+
+    showPropFirmPassedModal() {
+      if (!this.dom.modalPropFirmPassed) return;
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+
+      const profitEarned = Math.max(0, this.currentCapital - pf.account_size);
+      if (this.dom.pfPassProfit) this.dom.pfPassProfit.innerText = `+${this.formatCurrency(profitEarned)}`;
+      if (this.dom.pfPassDays) this.dom.pfPassDays.innerText = `${pf.trading_days_count || 1} Days`;
+      if (this.dom.pfPassBestDay) {
+        this.dom.pfPassBestDay.innerText = `${this.formatCurrency(pf.largest_day_profit)} (${pf.largest_day_pct.toFixed(1)}%)`;
+      }
+
+      this.dom.modalPropFirmPassed.classList.remove("hidden");
+      this.audio.playTargetWin();
+    }
+
+    openPropFirmSetupModal() {
+      if (!this.dom.modalPropFirmSetup) return;
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+
+      // Set input values
+      if (this.dom.pfInputCustomCapital) this.dom.pfInputCustomCapital.value = pf.account_size;
+      if (this.dom.pfSliderMdd) this.dom.pfSliderMdd.value = pf.max_drawdown_pct;
+      if (this.dom.pfSliderDll) this.dom.pfSliderDll.value = pf.daily_loss_limit_pct;
+      if (this.dom.pfChkDll) this.dom.pfChkDll.checked = pf.daily_loss_limit_enabled;
+      if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = pf.profit_target_pct;
+      if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = pf.min_trading_days;
+
+      // Select matching size chip if exists
+      if (this.dom.pfSizeChips) {
+        this.dom.pfSizeChips.querySelectorAll(".pf-chip").forEach(c => {
+          c.classList.toggle("active", parseFloat(c.dataset.val) === pf.account_size);
+        });
+      }
+
+      // Drawdown buttons
+      const isStatic = pf.drawdown_type === "static";
+      if (this.dom.btnPfDdEod) this.dom.btnPfDdEod.classList.toggle("active", !isStatic);
+      if (this.dom.btnPfDdStatic) this.dom.btnPfDdStatic.classList.toggle("active", isStatic);
+
+      this.updatePropFirmSetupReadouts();
+      this.dom.modalPropFirmSetup.classList.remove("hidden");
+      this.audio.playClick();
+    }
+
+    applyPropFirmPreset(presetKey) {
+      if (!this.dom.modalPropFirmSetup) return;
+
+      if (presetKey === "topstep50k") {
+        this.dom.pfInputCustomCapital.value = 50000;
+        this.dom.btnPfDdEod.classList.add("active");
+        this.dom.btnPfDdStatic.classList.remove("active");
+        this.dom.pfSliderMdd.value = 4.0;
+        this.dom.pfChkDll.checked = true;
+        this.dom.pfSliderDll.value = 2.0;
+        this.dom.pfSliderTarget.value = 6.0;
+        this.dom.pfSliderMinDays.value = 2;
+      } else if (presetKey === "apex50k") {
+        this.dom.pfInputCustomCapital.value = 50000;
+        this.dom.btnPfDdEod.classList.add("active");
+        this.dom.btnPfDdStatic.classList.remove("active");
+        this.dom.pfSliderMdd.value = 5.0;
+        this.dom.pfChkDll.checked = false;
+        this.dom.pfSliderDll.value = 3.0;
+        this.dom.pfSliderTarget.value = 6.0;
+        this.dom.pfSliderMinDays.value = 1;
+      } else if (presetKey === "fundednext50k") {
+        this.dom.pfInputCustomCapital.value = 50000;
+        this.dom.btnPfDdEod.classList.remove("active");
+        this.dom.btnPfDdStatic.classList.add("active");
+        this.dom.pfSliderMdd.value = 6.0;
+        this.dom.pfChkDll.checked = true;
+        this.dom.pfSliderDll.value = 3.0;
+        this.dom.pfSliderTarget.value = 6.0;
+        this.dom.pfSliderMinDays.value = 3;
+      }
+
+      // Update chips
+      const capVal = parseFloat(this.dom.pfInputCustomCapital.value);
+      if (this.dom.pfSizeChips) {
+        this.dom.pfSizeChips.querySelectorAll(".pf-chip").forEach(c => {
+          c.classList.toggle("active", parseFloat(c.dataset.val) === capVal);
+        });
+      }
+
+      this.updatePropFirmSetupReadouts();
+      this.audio.playClick();
+    }
+
+    updatePropFirmSetupReadouts() {
+      const cap = parseFloat(this.dom.pfInputCustomCapital.value) || 50000;
+      const mddPct = parseFloat(this.dom.pfSliderMdd.value) || 5;
+      const mddAmount = Math.round(cap * (mddPct / 100));
+      const floorAmount = cap - mddAmount;
+
+      if (this.dom.pfMddReadout) {
+        this.dom.pfMddReadout.innerText = `${mddPct.toFixed(1)}% ($${mddAmount.toLocaleString()})`;
+      }
+      if (this.dom.pfMddFloorPreview) {
+        this.dom.pfMddFloorPreview.innerText = `Starting Floor: $${floorAmount.toLocaleString()}`;
+      }
+
+      const dllEnabled = this.dom.pfChkDll.checked;
+      const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3;
+      const dllAmount = Math.round(cap * (dllPct / 100));
+      if (this.dom.pfDllReadout) {
+        this.dom.pfDllReadout.innerText = dllEnabled ? `${dllPct.toFixed(1)}% ($${dllAmount.toLocaleString()})` : "Disabled";
+      }
+
+      const targetPct = parseFloat(this.dom.pfSliderTarget.value) || 6;
+      const targetAmount = Math.round(cap * (targetPct / 100));
+      const goalBalance = cap + targetAmount;
+      if (this.dom.pfTargetReadout) {
+        this.dom.pfTargetReadout.innerText = `${targetPct.toFixed(1)}% ($${targetAmount.toLocaleString()})`;
+      }
+      if (this.dom.pfTargetGoalPreview) {
+        this.dom.pfTargetGoalPreview.innerText = `Target Balance: $${goalBalance.toLocaleString()}`;
+      }
+
+      const minDays = parseInt(this.dom.pfSliderMinDays.value) || 2;
+      if (this.dom.pfMinDaysReadout) {
+        this.dom.pfMinDaysReadout.innerText = `${minDays} Days`;
+      }
+    }
+
+    async savePropFirmSetup() {
+      const cap = parseFloat(this.dom.pfInputCustomCapital.value) || 50000;
+      const isStatic = this.dom.btnPfDdStatic.classList.contains("active");
+      const ddType = isStatic ? "static" : "eod_trailing";
+      const mddPct = parseFloat(this.dom.pfSliderMdd.value) || 5.0;
+      const dllEnabled = this.dom.pfChkDll.checked;
+      const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3.0;
+      const targetPct = parseFloat(this.dom.pfSliderTarget.value) || 6.0;
+      const minDays = parseInt(this.dom.pfSliderMinDays.value) || 2;
+
+      try {
+        const res = await fetch("/api/game/propfirm/setup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            account_size: cap,
+            drawdown_type: ddType,
+            max_drawdown_pct: mddPct,
+            daily_loss_limit_enabled: dllEnabled,
+            daily_loss_limit_pct: dllPct,
+            profit_target_pct: targetPct,
+            min_trading_days: minDays
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.propFirm = data.prop_firm;
+        } else {
+          // Local fallback
+          this.propFirm = {
+            enabled: true,
+            phase: "evaluation",
+            status: "in_progress",
+            account_size: cap,
+            current_equity: cap,
+            high_water_mark: cap,
+            drawdown_type: ddType,
+            max_drawdown_pct: mddPct,
+            max_drawdown_amount: Math.round(cap * (mddPct / 100)),
+            drawdown_floor: cap - Math.round(cap * (mddPct / 100)),
+            initial_drawdown_floor: cap - Math.round(cap * (mddPct / 100)),
+            daily_loss_limit_enabled: dllEnabled,
+            daily_loss_limit_pct: dllPct,
+            daily_loss_limit_amount: Math.round(cap * (dllPct / 100)),
+            profit_target_pct: targetPct,
+            profit_target_amount: Math.round(cap * (targetPct / 100)),
+            min_trading_days: minDays,
+            trading_days_count: 0,
+            day_start_equity: cap,
+            day_pnl: 0.0,
+            day_dll_breached: false,
+            consistency_rule_pct: 40.0,
+            largest_day_profit: 0.0,
+            largest_day_pct: 0.0,
+            consistency_satisfied: true,
+            daily_history: [],
+            payout_history: [],
+            lifetime_payouts: 0.0
+          };
+        }
+
+        // Apply new account balance
+        this.startingCapital = cap;
+        this.currentCapital = cap;
+        this.usdStartingCapital = cap;
+        this.usdCurrentCapital = cap;
+        this.dayStartCapital = cap;
+        this.dayPnL = 0;
+        this.tradeJournal = [];
+
+        this.saveState();
+        this.renderJournal();
+        this.updateHUD();
+        this.renderPropFirmHUD();
+        this.dom.modalPropFirmSetup.classList.add("hidden");
+        this.audio.playClick();
+
+        this.startNewSession(this.currentSymbol);
+      } catch (e) {
+        console.error("Save prop firm setup failed:", e);
+      }
+    }
+
+    async activateFundedAccount(consistencyChoice) {
+      try {
+        const res = await fetch("/api/game/propfirm/activate-funded", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            consistency_rule_pct: consistencyChoice
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.propFirm = data.prop_firm;
+        } else {
+          this.propFirm.phase = "funded";
+          this.propFirm.status = "passed";
+          this.propFirm.consistency_rule_pct = consistencyChoice;
+          this.propFirm.current_equity = this.propFirm.account_size;
+          this.propFirm.drawdown_floor = this.propFirm.account_size - this.propFirm.max_drawdown_amount;
+        }
+
+        const cap = this.propFirm.account_size;
+        this.startingCapital = cap;
+        this.currentCapital = cap;
+        this.usdStartingCapital = cap;
+        this.usdCurrentCapital = cap;
+        this.dayStartCapital = cap;
+        this.dayPnL = 0;
+        this.tradeJournal = [];
+
+        this.saveState();
+        this.renderJournal();
+        this.updateHUD();
+        this.renderPropFirmHUD();
+        this.dom.modalPropFirmPassed.classList.add("hidden");
+        this.audio.playTargetWin();
+
+        alert("🎉 CONGRATULATIONS! Your FUNDED ACCOUNT is now active. Trade with discipline and secure your payouts!");
+        this.startNewSession(this.currentSymbol);
+      } catch (e) {
+        console.error("Funded account activation failed:", e);
+      }
+    }
+
+    openPropFirmPayoutModal() {
+      if (!this.dom.modalPropFirmPayout) return;
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+
+      const curBal = this.currentCapital;
+      const safetyBuf = pf.account_size;
+      const availProfit = Math.max(0, curBal - safetyBuf);
+
+      if (this.dom.pfPayoutCurBal) this.dom.pfPayoutCurBal.innerText = this.formatCurrency(curBal);
+      if (this.dom.pfPayoutSafetyBuf) this.dom.pfPayoutSafetyBuf.innerText = this.formatCurrency(safetyBuf);
+      if (this.dom.pfPayoutAvailProfit) this.dom.pfPayoutAvailProfit.innerText = this.formatCurrency(availProfit);
+      if (this.dom.pfInputPayoutAmount) {
+        this.dom.pfInputPayoutAmount.max = availProfit;
+        this.dom.pfInputPayoutAmount.value = Math.min(availProfit, 2000);
+      }
+      if (this.dom.pfLifetimePayouts) {
+        this.dom.pfLifetimePayouts.innerText = this.formatCurrency(pf.lifetime_payouts || 0);
+      }
+
+      // Check consistency rule
+      const rulePct = pf.consistency_rule_pct || 0;
+      const lPct = pf.largest_day_pct || 0;
+      const isConsistent = rulePct === 0 || lPct <= rulePct;
+      if (this.dom.pfChkConsIcon && this.dom.pfChkConsText) {
+        if (rulePct === 0) {
+          this.dom.pfChkConsIcon.innerText = "✅";
+          this.dom.pfChkConsText.innerText = "Consistency: No restriction (Free trading)";
+        } else {
+          this.dom.pfChkConsIcon.innerText = isConsistent ? "✅" : "❌";
+          this.dom.pfChkConsText.innerText = `Consistency: Best day ${lPct.toFixed(1)}% (Limit: <= ${rulePct.toFixed(1)}%)`;
+        }
+      }
+
+      // Render payout list
+      if (this.dom.pfPayoutList) {
+        const hist = pf.payout_history || [];
+        if (hist.length === 0) {
+          this.dom.pfPayoutList.innerHTML = `<div class="empty-hint">No payouts requested yet.</div>`;
+        } else {
+          const items = hist.map(p => `
+            <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+              <span>${p.date || "Session"}</span>
+              <b class="glow-green font-mono">+$${p.amount.toLocaleString()}</b>
+            </div>
+          `);
+          this.dom.pfPayoutList.innerHTML = items.join("");
+        }
+      }
+
+      this.dom.modalPropFirmPayout.classList.remove("hidden");
+      this.audio.playClick();
+    }
+
+    async processPropFirmPayout() {
+      const amount = parseFloat(this.dom.pfInputPayoutAmount.value) || 0;
+      if (amount <= 0) {
+        alert("Please enter a valid payout amount.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/game/propfirm/payout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || "Payout request failed");
+          return;
+        }
+
+        const data = await res.json();
+        this.propFirm = data.prop_firm;
+        this.currentCapital = this.propFirm.current_equity;
+        this.usdCurrentCapital = this.currentCapital;
+
+        this.saveState();
+        this.updateHUD();
+        this.renderPropFirmHUD();
+        this.dom.modalPropFirmPayout.classList.add("hidden");
+        this.audio.playTargetWin();
+
+        alert(`💰 Simulated Payout of $${amount.toLocaleString()} Approved and Processed! Congratulations!`);
+      } catch (e) {
+        alert("Failed to process payout: " + e.message);
+      }
+    }
+
+    async resetPropFirmChallenge() {
+      if (!confirm("Are you sure you want to reset your Prop Firm Challenge and restart from Day 1?")) {
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/game/propfirm/reset", { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          this.propFirm = data.prop_firm;
+        } else {
+          this.propFirm = this.getDefaultPropFirmState();
+        }
+
+        const cap = this.propFirm.account_size;
+        this.startingCapital = cap;
+        this.currentCapital = cap;
+        this.usdStartingCapital = cap;
+        this.usdCurrentCapital = cap;
+        this.dayStartCapital = cap;
+        this.dayPnL = 0;
+        this.tradeJournal = [];
+
+        this.saveState();
+        this.renderJournal();
+        this.updateHUD();
+        this.renderPropFirmHUD();
+        if (this.dom.modalPropFirmFailed) this.dom.modalPropFirmFailed.classList.add("hidden");
+        if (this.dom.propFirmDllBanner) this.dom.propFirmDllBanner.classList.add("hidden");
+        this.audio.playClick();
+
+        this.startNewSession(this.currentSymbol);
+      } catch (e) {
+        console.error("Reset prop firm error:", e);
+      }
+    }
+
+    bindPropFirmEvents() {
+      // HUD bar buttons
+      if (this.dom.btnPfRules) {
+        this.dom.btnPfRules.addEventListener("click", () => this.openPropFirmSetupModal());
+      }
+      if (this.dom.btnPfPayout) {
+        this.dom.btnPfPayout.addEventListener("click", () => this.openPropFirmPayoutModal());
+      }
+      if (this.dom.btnPfReset) {
+        this.dom.btnPfReset.addEventListener("click", () => this.resetPropFirmChallenge());
+      }
+
+      // DLL Soft-lock banner
+      if (this.dom.btnDllNextDay) {
+        this.dom.btnDllNextDay.addEventListener("click", () => {
+          if (this.dom.propFirmDllBanner) this.dom.propFirmDllBanner.classList.add("hidden");
+          this.startNewSession(this.currentSymbol);
+        });
+      }
+
+      // Setup Modal Presets
+      document.querySelectorAll(".pf-preset-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll(".pf-preset-chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          const preset = chip.dataset.pfPreset;
+          this.applyPropFirmPreset(preset);
+        });
+      });
+
+      // Account Size chips
+      if (this.dom.pfSizeChips) {
+        this.dom.pfSizeChips.querySelectorAll(".pf-chip").forEach(chip => {
+          chip.addEventListener("click", () => {
+            this.dom.pfSizeChips.querySelectorAll(".pf-chip").forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            this.dom.pfInputCustomCapital.value = chip.dataset.val;
+            this.updatePropFirmSetupReadouts();
+          });
+        });
+      }
+
+      if (this.dom.pfInputCustomCapital) {
+        this.dom.pfInputCustomCapital.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+
+      // Drawdown Type buttons
+      if (this.dom.btnPfDdEod) {
+        this.dom.btnPfDdEod.addEventListener("click", () => {
+          this.dom.btnPfDdEod.classList.add("active");
+          this.dom.btnPfDdStatic.classList.remove("active");
+          if (this.dom.pfDdTypeDesc) {
+            this.dom.pfDdTypeDesc.innerHTML = "<b>EOD Trailing:</b> Drawdown floor trails your High Water Mark at the end of each profitable day, and locks at starting balance once in profit.";
+          }
+        });
+      }
+      if (this.dom.btnPfDdStatic) {
+        this.dom.btnPfDdStatic.addEventListener("click", () => {
+          this.dom.btnPfDdStatic.classList.add("active");
+          this.dom.btnPfDdEod.classList.remove("active");
+          if (this.dom.pfDdTypeDesc) {
+            this.dom.pfDdTypeDesc.innerHTML = "<b>Static Drawdown:</b> Drawdown floor is locked at a fixed distance below your initial starting balance.";
+          }
+        });
+      }
+
+      // Sliders & Checkbox
+      if (this.dom.pfSliderMdd) {
+        this.dom.pfSliderMdd.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfChkDll) {
+        this.dom.pfChkDll.addEventListener("change", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfSliderDll) {
+        this.dom.pfSliderDll.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfSliderTarget) {
+        this.dom.pfSliderTarget.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfSliderMinDays) {
+        this.dom.pfSliderMinDays.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+
+      // Setup Modal actions
+      if (this.dom.btnClosePropFirmSetup) {
+        this.dom.btnClosePropFirmSetup.addEventListener("click", () => {
+          this.dom.modalPropFirmSetup.classList.add("hidden");
+        });
+      }
+      if (this.dom.btnCancelPropFirmSetup) {
+        this.dom.btnCancelPropFirmSetup.addEventListener("click", () => {
+          this.dom.modalPropFirmSetup.classList.add("hidden");
+        });
+      }
+      if (this.dom.btnSavePropFirmSetup) {
+        this.dom.btnSavePropFirmSetup.addEventListener("click", () => this.savePropFirmSetup());
+      }
+
+      // Failed Modal actions
+      if (this.dom.btnClosePropFirmFailed) {
+        this.dom.btnClosePropFirmFailed.addEventListener("click", () => {
+          this.dom.modalPropFirmFailed.classList.add("hidden");
+        });
+      }
+      if (this.dom.btnPfRetry) {
+        this.dom.btnPfRetry.addEventListener("click", () => {
+          this.dom.modalPropFirmFailed.classList.add("hidden");
+          this.resetPropFirmChallenge();
+        });
+      }
+      if (this.dom.btnPfInspectChart) {
+        this.dom.btnPfInspectChart.addEventListener("click", () => {
+          this.dom.modalPropFirmFailed.classList.add("hidden");
+        });
+      }
+
+      // Passed Modal actions
+      if (this.dom.btnClosePropFirmPassed) {
+        this.dom.btnClosePropFirmPassed.addEventListener("click", () => {
+          this.dom.modalPropFirmPassed.classList.add("hidden");
+        });
+      }
+      // Consistency radio cards
+      document.querySelectorAll(".pf-consistency-card").forEach(card => {
+        card.addEventListener("click", () => {
+          document.querySelectorAll(".pf-consistency-card").forEach(c => c.classList.remove("active"));
+          card.classList.add("active");
+          const radio = card.querySelector("input[type='radio']");
+          if (radio) radio.checked = true;
+        });
+      });
+      if (this.dom.btnActivateFunded) {
+        this.dom.btnActivateFunded.addEventListener("click", () => {
+          const selected = document.querySelector("input[name='pf-consistency-choice']:checked");
+          const val = selected ? parseFloat(selected.value) : 40.0;
+          this.activateFundedAccount(val);
+        });
+      }
+
+      // Payout Modal actions
+      if (this.dom.btnClosePropFirmPayout) {
+        this.dom.btnClosePropFirmPayout.addEventListener("click", () => {
+          this.dom.modalPropFirmPayout.classList.add("hidden");
+        });
+      }
+      if (this.dom.btnCancelPayout) {
+        this.dom.btnCancelPayout.addEventListener("click", () => {
+          this.dom.modalPropFirmPayout.classList.add("hidden");
+        });
+      }
+      if (this.dom.btnPfPayoutMax) {
+        this.dom.btnPfPayoutMax.addEventListener("click", () => {
+          const max = parseFloat(this.dom.pfInputPayoutAmount.max) || 0;
+          this.dom.pfInputPayoutAmount.value = max;
+        });
+      }
+      if (this.dom.btnConfirmPayout) {
+        this.dom.btnConfirmPayout.addEventListener("click", () => this.processPropFirmPayout());
+      }
     }
   }
 

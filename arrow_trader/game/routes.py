@@ -62,6 +62,29 @@ class ResetAccountRequest(BaseModel):
     market: Optional[str] = "IN"  # 'IN' or 'US'
 
 
+class PropFirmSetupRequest(BaseModel):
+    account_size: float = 50000.0
+    drawdown_type: str = "eod_trailing"  # 'static' or 'eod_trailing'
+    max_drawdown_pct: float = 5.0
+    daily_loss_limit_pct: Optional[float] = 3.0
+    profit_target_pct: float = 6.0
+    min_trading_days: int = 2
+
+
+class PropFirmEODRequest(BaseModel):
+    date: Optional[str] = ""
+    day_pnl: float = 0.0
+    trades_count: int = 1
+
+
+class PropFirmFundedRequest(BaseModel):
+    consistency_rule_pct: float = 40.0
+
+
+class PropFirmPayoutRequest(BaseModel):
+    amount: float
+
+
 @router.get("/config")
 def get_game_config() -> Dict[str, Any]:
     """Retrieve game configuration, instruments, and saved player state."""
@@ -122,6 +145,14 @@ def record_completed_trade(req: SaveTradeRequest) -> Dict[str, Any]:
     if is_us:
         state["usd_current_balance"] = round(state.get("usd_current_balance", 50000.0) + req.pnl, 2)
         state["current_balance"] = state["usd_current_balance"]
+        if "prop_firm" in state and isinstance(state["prop_firm"], dict):
+            pf = state["prop_firm"]
+            pf["current_equity"] = state["usd_current_balance"]
+            pf["total_pnl"] = round(pf["current_equity"] - pf["account_size"], 2)
+            # Intraday MDD breach check
+            if pf["current_equity"] <= pf.get("drawdown_floor", 0):
+                pf["status"] = "failed"
+                pf["failure_reason"] = f"Max Drawdown Breached: Intraday equity ${pf['current_equity']:,.2f} touched floor ${pf['drawdown_floor']:,.2f}"
     else:
         state["inr_current_balance"] = round(state.get("inr_current_balance", 1000000.0) + req.pnl, 2)
         state["current_balance"] = state["inr_current_balance"]
@@ -200,4 +231,89 @@ def reset_account(req: ResetAccountRequest) -> Dict[str, Any]:
         "status": "success",
         "message": msg,
         "state": state
+    }
+
+
+@router.post("/propfirm/setup")
+def setup_propfirm(req: PropFirmSetupRequest) -> Dict[str, Any]:
+    """Configures a new Prop Firm Evaluation Challenge."""
+    try:
+        pf = simulator.setup_prop_firm(
+            account_size=req.account_size,
+            drawdown_type=req.drawdown_type,
+            max_dd_pct=req.max_drawdown_pct,
+            dll_pct=req.daily_loss_limit_pct,
+            target_pct=req.profit_target_pct,
+            min_days=req.min_trading_days
+        )
+        return {
+            "status": "success",
+            "message": f"Prop Firm Challenge configured for ${req.account_size:,.2f} ({req.drawdown_type.upper()})",
+            "prop_firm": pf
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/propfirm/eod")
+def process_propfirm_eod(req: PropFirmEODRequest) -> Dict[str, Any]:
+    """Completes simulated trading day, recalculates EOD trailing floor & evaluation progress."""
+    try:
+        pf = simulator.process_prop_firm_eod(
+            date_str=req.date,
+            day_pnl=req.day_pnl,
+            trades_count=req.trades_count
+        )
+        return {
+            "status": "success",
+            "prop_firm": pf
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/propfirm/activate-funded")
+def activate_funded(req: PropFirmFundedRequest) -> Dict[str, Any]:
+    """Transitions a cleared evaluation into an active Funded Account with chosen consistency rule."""
+    try:
+        pf = simulator.activate_funded_account(consistency_rule_pct=req.consistency_rule_pct)
+        return {
+            "status": "success",
+            "message": f"Funded Account activated with {req.consistency_rule_pct}% consistency rule!",
+            "prop_firm": pf
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/propfirm/payout")
+def request_payout(req: PropFirmPayoutRequest) -> Dict[str, Any]:
+    """Processes simulated payout request from funded account profits."""
+    try:
+        res = simulator.request_simulated_payout(amount=req.amount)
+        return {
+            "status": "success",
+            "message": f"Simulated payout of ${req.amount:,.2f} approved and deducted from funded balance!",
+            "payout": res["payout"],
+            "prop_firm": res["prop_firm"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/propfirm/reset")
+def reset_propfirm() -> Dict[str, Any]:
+    """Resets the Prop Firm Challenge back to default starting evaluation."""
+    pf = simulator.setup_prop_firm(
+        account_size=50000.0,
+        drawdown_type="eod_trailing",
+        max_dd_pct=5.0,
+        dll_pct=3.0,
+        target_pct=6.0,
+        min_days=2
+    )
+    return {
+        "status": "success",
+        "message": "Prop firm challenge reset to default $50,000 evaluation.",
+        "prop_firm": pf
     }

@@ -2203,3 +2203,676 @@ body.theme-obsidian {
 .fib-add-row {
   margin: 6px 0 14px 0;
 }
+
+/* ==========================================================================
+   PROP FIRM SIMULATOR HUD & WORKSPACE STYLING
+   ========================================================================== */
+
+.propfirm-hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(16, 22, 36, 0.96) 0%, rgba(20, 28, 46, 0.92) 100%);
+  border-bottom: 1px solid rgba(255, 184, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 10;
+  flex-wrap: nowrap;
+}
+
+.propfirm-hud-bar.funded-active {
+  border-bottom: 1px solid rgba(0, 245, 155, 0.35);
+  background: linear-gradient(90deg, rgba(12, 28, 25, 0.96) 0%, rgba(16, 36, 32, 0.92) 100%);
+}
+
+.propfirm-hud-bar.busted-active {
+  border-bottom: 1px solid rgba(255, 51, 102, 0.45);
+  background: linear-gradient(90deg, rgba(32, 14, 20, 0.96) 0%, rgba(40, 16, 24, 0.92) 100%);
+}
+
+.pf-hud-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pf-phase-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 184, 0, 0.12);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+  color: #ffb800;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.pf-phase-badge.funded {
+  background: rgba(0, 245, 155, 0.12);
+  border-color: rgba(0, 245, 155, 0.4);
+  color: #00f59b;
+}
+
+.pf-phase-badge.failed {
+  background: rgba(255, 51, 102, 0.15);
+  border-color: rgba(255, 51, 102, 0.5);
+  color: #ff3366;
+}
+
+.pf-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffb800;
+  box-shadow: 0 0 8px #ffb800;
+  animation: pulse-ring 1.8s infinite;
+}
+
+.pf-phase-badge.funded .pf-pulse-dot {
+  background: #00f59b;
+  box-shadow: 0 0 8px #00f59b;
+}
+
+.pf-phase-badge.failed .pf-pulse-dot {
+  background: #ff3366;
+  box-shadow: 0 0 8px #ff3366;
+}
+
+.pf-account-tag {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.pf-tag-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.pf-tag-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pf-hud-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
+.pf-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 5px 10px;
+  min-width: 140px;
+}
+
+.pf-compact-card {
+  min-width: 120px;
+}
+
+.pf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pf-card-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.pf-card-val {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.pf-progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 1px;
+}
+
+.pf-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8 0%, #00f59b 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.pf-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10.5px;
+}
+
+.pf-sub-label {
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+
+.pf-sub-val {
+  font-weight: 700;
+  color: #fff;
+}
+
+.pf-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-pf-action {
+  padding: 5px 10px;
+  background: rgba(255, 184, 0, 0.14);
+  border: 1px solid rgba(255, 184, 0, 0.35);
+  border-radius: 6px;
+  color: #ffb800;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-pf-action:hover {
+  background: rgba(255, 184, 0, 0.25);
+  border-color: rgba(255, 184, 0, 0.6);
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.3);
+}
+
+.btn-pf-ghost {
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-pf-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* ==========================================================================
+   DAILY LOSS LIMIT BANNER
+   ========================================================================== */
+
+.propfirm-dll-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: rgba(30, 16, 12, 0.94);
+  border: 1px solid #f97316;
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(249, 115, 22, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 12px 20px;
+  max-width: 580px;
+  width: 90%;
+  animation: slideDown 0.3s ease;
+}
+
+.dll-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dll-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.dll-text {
+  flex: 1;
+}
+
+.dll-headline {
+  color: #f97316;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.dll-text p {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   PROP FIRM MODALS
+   ========================================================================== */
+
+.propfirm-modal-card {
+  max-width: 560px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.pf-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pf-modal-icon {
+  font-size: 28px;
+}
+
+.pf-presets-section {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.pf-preset-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.pf-preset-chip {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pf-preset-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.pf-preset-chip.active {
+  background: rgba(255, 184, 0, 0.18);
+  border-color: #ffb800;
+  color: #ffb800;
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.25);
+}
+
+.pf-field-group {
+  margin-bottom: 14px;
+}
+
+.pf-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.pf-chips-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pf-chip {
+  flex: 1;
+  min-width: 70px;
+  padding: 7px 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pf-chip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pf-chip.active {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.pf-custom-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pf-num-input {
+  max-width: 160px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.pf-help-text {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.pf-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pf-slider-readout {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cyber-slider {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.pf-slider-limits {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.pf-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Autopsy Card for Breach */
+.pf-failed-card {
+  border-color: rgba(255, 51, 102, 0.5);
+  box-shadow: 0 20px 60px rgba(255, 51, 102, 0.2);
+}
+
+.pf-status-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+.pf-busted-glow {
+  background: rgba(255, 51, 102, 0.2);
+  border: 1px solid #ff3366;
+  color: #ff3366;
+}
+
+.pf-autopsy-box {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 51, 102, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+
+.pf-autopsy-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #ff3366;
+  margin: 0 0 10px 0;
+}
+
+.pf-autopsy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+}
+
+.pf-autopsy-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pf-autopsy-item .label {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.pf-autopsy-item .val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Passed / Funded Promotion Modal */
+.pf-passed-card {
+  border-color: rgba(0, 245, 155, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 245, 155, 0.2);
+}
+
+.pf-passed-glow {
+  background: rgba(0, 245, 155, 0.2);
+  border: 1px solid #00f59b;
+  color: #00f59b;
+}
+
+.pf-victory-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 245, 155, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 14px 0;
+}
+
+.pf-vic-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+}
+
+.pf-vic-item .label {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.pf-vic-item .val {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pf-funded-select-section {
+  margin: 14px 0;
+}
+
+.pf-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #fff;
+  margin: 0 0 4px 0;
+}
+
+.pf-section-desc {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin: 0 0 10px 0;
+}
+
+.pf-consistency-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-consistency-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pf-consistency-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pf-consistency-card.active,
+.pf-consistency-card:has(input:checked) {
+  border-color: #00f59b;
+  background: rgba(0, 245, 155, 0.08);
+}
+
+.pf-cons-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pf-cons-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pf-cons-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Payout Modal */
+.pf-payout-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.pf-payout-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+}
+
+.pf-payout-stat .label {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.pf-payout-stat .val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.pf-compliance-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pf-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pf-payout-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pf-payout-history-section {
+  margin: 14px 0 6px 0;
+}
+
+.pf-payout-list {
+  max-height: 80px;
+  overflow-y: auto;
+  margin-top: 6px;
+  font-size: 10.5px;
+}
+

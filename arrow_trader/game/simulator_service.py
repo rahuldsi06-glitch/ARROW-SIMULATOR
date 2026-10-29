@@ -519,6 +519,52 @@ class SimulatorService:
             "strikes": strikes_list
         }
 
+    def get_default_prop_firm_state(
+        self,
+        account_size: float = 50000.0,
+        drawdown_type: str = "eod_trailing",
+        max_dd_pct: float = 5.0,
+        dll_pct: Optional[float] = 3.0,
+        target_pct: float = 6.0,
+        min_days: int = 2
+    ) -> Dict[str, Any]:
+        """Returns standard evaluation configuration and live tracking state for Prop Firm mode."""
+        max_dd_amount = round(account_size * (max_dd_pct / 100.0), 2)
+        dll_amount = round(account_size * (dll_pct / 100.0), 2) if dll_pct and dll_pct > 0 else 0.0
+        profit_target_amount = round(account_size * (target_pct / 100.0), 2)
+        floor = round(account_size - max_dd_amount, 2)
+
+        return {
+            "enabled": True,
+            "phase": "evaluation",                  # "evaluation" or "funded"
+            "status": "active",                     # "active", "passed", "failed"
+            "account_size": account_size,
+            "current_equity": account_size,
+            "drawdown_type": drawdown_type,         # "static" or "eod_trailing"
+            "max_drawdown_pct": max_dd_pct,
+            "max_drawdown_amount": max_dd_amount,
+            "daily_loss_limit_pct": dll_pct or 0.0,
+            "daily_loss_limit_amount": dll_amount,
+            "profit_target_pct": target_pct,
+            "profit_target_amount": profit_target_amount,
+            "min_trading_days": min_days,
+            "high_water_mark": account_size,
+            "drawdown_floor": floor,
+            "day_start_equity": account_size,
+            "daily_loss_locked": False,
+            "days_traded": 0,
+            "trading_days_count": 0,
+            "daily_history": [],                    # List of day records
+            "total_pnl": 0.0,
+            "consistency_rule_pct": 40.0,
+            "highest_day_pnl": 0.0,
+            "highest_day_pct": 0.0,
+            "lifetime_payouts": 0.0,
+            "payout_history": [],
+            "failure_reason": None,
+            "pass_date": None
+        }
+
     def load_game_state(self) -> Dict[str, Any]:
         """Loads saved player profile, balance, high score, and badges."""
         if GAME_STATE_FILE.exists():
@@ -531,6 +577,8 @@ class SimulatorService:
                         data.setdefault("inr_current_balance", data.get("current_balance", 1000000.0))
                         data.setdefault("usd_starting_balance", 50000.0)
                         data.setdefault("usd_current_balance", 50000.0)
+                        if "prop_firm" not in data or not isinstance(data["prop_firm"], dict):
+                            data["prop_firm"] = self.get_default_prop_firm_state()
                         return data
             except Exception:
                 pass
@@ -550,10 +598,181 @@ class SimulatorService:
             "losses": 0,
             "sound_enabled": True,
             "blind_mode": False,
-            "trade_history": []
+            "trade_history": [],
+            "prop_firm": self.get_default_prop_firm_state()
         }
         self.save_game_state(default_state)
         return default_state
+
+    def setup_prop_firm(
+        self,
+        account_size: float = 50000.0,
+        drawdown_type: str = "eod_trailing",
+        max_dd_pct: float = 5.0,
+        dll_pct: Optional[float] = 3.0,
+        target_pct: float = 6.0,
+        min_days: int = 2
+    ) -> Dict[str, Any]:
+        """Configures or restarts a Prop Firm Evaluation Challenge."""
+        state = self.load_game_state()
+        state["prop_firm"] = self.get_default_prop_firm_state(
+            account_size=account_size,
+            drawdown_type=drawdown_type,
+            max_dd_pct=max_dd_pct,
+            dll_pct=dll_pct,
+            target_pct=target_pct,
+            min_days=min_days
+        )
+        state["usd_starting_balance"] = account_size
+        state["usd_current_balance"] = account_size
+        if state.get("market") == "US":
+            state["starting_balance"] = account_size
+            state["current_balance"] = account_size
+        self.save_game_state(state)
+        return state["prop_firm"]
+
+    def process_prop_firm_eod(
+        self,
+        date_str: str,
+        day_pnl: float,
+        trades_count: int
+    ) -> Dict[str, Any]:
+        """Processes end of simulated day, updates EOD trailing floor, history, and checks rules."""
+        state = self.load_game_state()
+        pf = state.get("prop_firm", self.get_default_prop_firm_state())
+
+        equity = round(pf["current_equity"] + day_pnl, 2)
+        pf["current_equity"] = equity
+        state["usd_current_balance"] = equity
+        if state.get("market") == "US":
+            state["current_balance"] = equity
+
+        pf["total_pnl"] = round(equity - pf["account_size"], 2)
+        if trades_count > 0:
+            pf["days_traded"] += 1
+            pf["trading_days_count"] = pf["days_traded"]
+
+        # Update High-Water Mark and Trailing Floor
+        if pf["drawdown_type"] == "eod_trailing":
+            if equity > pf["high_water_mark"]:
+                pf["high_water_mark"] = equity
+                raw_floor = round(pf["high_water_mark"] - pf["max_drawdown_amount"], 2)
+                # Standard prop firm lock: once floor reaches initial balance, lock it and do not trail higher
+                pf["drawdown_floor"] = min(pf["account_size"], raw_floor)
+        else:
+            # Static floor stays fixed at account_size - max_drawdown_amount
+            pf["drawdown_floor"] = round(pf["account_size"] - pf["max_drawdown_amount"], 2)
+
+        # Check MDD Breach
+        if equity <= pf["drawdown_floor"]:
+            pf["status"] = "failed"
+            pf["failure_reason"] = f"Max Drawdown Breached: Equity (${equity:,.2f}) hit floor (${pf['drawdown_floor']:,.2f})"
+
+        # Check Evaluation Target (if active and not breached)
+        if pf["phase"] == "evaluation" and pf["status"] == "active":
+            if pf["total_pnl"] >= pf["profit_target_amount"] and pf["days_traded"] >= pf["min_trading_days"]:
+                pf["status"] = "passed"
+                pf["pass_date"] = date_str
+
+        # Update consistency calculation for funded accounts or evaluation tracking
+        history = pf.setdefault("daily_history", [])
+        history.append({
+            "day_num": len(history) + 1,
+            "date": date_str,
+            "pnl": round(day_pnl, 2),
+            "trades": trades_count,
+            "close_equity": equity,
+            "floor": pf["drawdown_floor"],
+            "high_water_mark": pf["high_water_mark"]
+        })
+
+        profitable_days = [d["pnl"] for d in history if d["pnl"] > 0]
+        tot_profit = sum(profitable_days)
+        if tot_profit > 0 and profitable_days:
+            max_day = max(profitable_days)
+            pf["highest_day_pnl"] = max_day
+            pf["highest_day_pct"] = round((max_day / tot_profit) * 100, 1)
+
+        # Reset day starting baseline for next day
+        pf["day_start_equity"] = equity
+        pf["daily_loss_locked"] = False
+
+        state["prop_firm"] = pf
+        self.save_game_state(state)
+        return pf
+
+    def activate_funded_account(self, consistency_rule_pct: float = 40.0) -> Dict[str, Any]:
+        """Promotes trader from cleared Evaluation to live Funded Account simulation."""
+        state = self.load_game_state()
+        pf = state.get("prop_firm", self.get_default_prop_firm_state())
+
+        account_size = pf["account_size"]
+        max_dd_amount = pf["max_drawdown_amount"]
+
+        pf["phase"] = "funded"
+        pf["status"] = "active"
+        pf["consistency_rule_pct"] = consistency_rule_pct
+        pf["current_equity"] = account_size
+        pf["day_start_equity"] = account_size
+        pf["high_water_mark"] = account_size
+        pf["drawdown_floor"] = round(account_size - max_dd_amount, 2)
+        pf["total_pnl"] = 0.0
+        pf["days_traded"] = 0
+        pf["daily_history"] = []
+        pf["daily_loss_locked"] = False
+        pf["highest_day_pnl"] = 0.0
+        pf["highest_day_pct"] = 0.0
+        pf["failure_reason"] = None
+
+        state["usd_starting_balance"] = account_size
+        state["usd_current_balance"] = account_size
+        if state.get("market") == "US":
+            state["starting_balance"] = account_size
+            state["current_balance"] = account_size
+
+        state["prop_firm"] = pf
+        self.save_game_state(state)
+        return pf
+
+    def request_simulated_payout(self, amount: float) -> Dict[str, Any]:
+        """Simulates requesting a prop firm payout from accumulated funded profits."""
+        state = self.load_game_state()
+        pf = state.get("prop_firm")
+        if not pf or pf.get("phase") != "funded" or pf.get("status") != "active":
+            raise ValueError("Payouts are only available on active Funded accounts.")
+
+        account_size = pf["account_size"]
+        current_equity = pf["current_equity"]
+        profit_available = current_equity - account_size
+
+        if amount <= 0:
+            raise ValueError("Payout amount must be greater than $0.")
+        if amount > profit_available:
+            raise ValueError(f"Requested payout ${amount:,.2f} exceeds available funded profit ${profit_available:,.2f}.")
+
+        # Deduct payout
+        new_equity = round(current_equity - amount, 2)
+        pf["current_equity"] = new_equity
+        pf["total_pnl"] = round(new_equity - account_size, 2)
+        pf["lifetime_payouts"] = round(pf.get("lifetime_payouts", 0.0) + amount, 2)
+
+        payout_record = {
+            "amount": amount,
+            "remaining_equity": new_equity,
+            "timestamp": int(datetime.utcnow().timestamp())
+        }
+        pf.setdefault("payout_history", []).append(payout_record)
+
+        state["usd_current_balance"] = new_equity
+        if state.get("market") == "US":
+            state["current_balance"] = new_equity
+
+        state["prop_firm"] = pf
+        self.save_game_state(state)
+        return {
+            "payout": payout_record,
+            "prop_firm": pf
+        }
 
     def save_game_state(self, state: Dict[str, Any]) -> None:
         """Persists player profile and statistics."""
