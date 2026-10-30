@@ -81,10 +81,12 @@ class PropFirmEODRequest(BaseModel):
 
 class PropFirmFundedRequest(BaseModel):
     consistency_rule_pct: float = 40.0
+    prop_firm: Optional[Dict[str, Any]] = None
 
 
 class PropFirmPayoutRequest(BaseModel):
     amount: float
+    prop_firm: Optional[Dict[str, Any]] = None
 
 
 @router.get("/config")
@@ -280,7 +282,10 @@ def process_propfirm_eod(req: PropFirmEODRequest) -> Dict[str, Any]:
 def activate_funded(req: PropFirmFundedRequest) -> Dict[str, Any]:
     """Transitions a cleared evaluation into an active Funded Account with chosen consistency rule."""
     try:
-        pf = simulator.activate_funded_account(consistency_rule_pct=req.consistency_rule_pct)
+        pf = simulator.activate_funded_account(
+            consistency_rule_pct=req.consistency_rule_pct,
+            client_prop_firm=req.prop_firm
+        )
         return {
             "status": "success",
             "message": f"Funded Account activated with {req.consistency_rule_pct}% consistency rule!",
@@ -294,7 +299,10 @@ def activate_funded(req: PropFirmFundedRequest) -> Dict[str, Any]:
 def request_payout(req: PropFirmPayoutRequest) -> Dict[str, Any]:
     """Processes simulated payout request from funded account profits."""
     try:
-        res = simulator.request_simulated_payout(amount=req.amount)
+        res = simulator.request_simulated_payout(
+            amount=req.amount,
+            client_prop_firm=req.prop_firm
+        )
         return {
             "status": "success",
             "message": f"Simulated payout of ${req.amount:,.2f} approved and deducted from funded balance!",

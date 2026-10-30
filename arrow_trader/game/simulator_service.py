@@ -658,7 +658,7 @@ class SimulatorService:
         max_dd_amount = float(pf.get("max_drawdown_amount", round(account_size * (pf.get("max_drawdown_pct", 5.0) / 100.0), 2)))
 
         # If client passes closing equity, use it; otherwise compute from previous equity + day_pnl
-        if client_prop_firm and isinstance(client_prop_firm, dict) and "current_equity" in client_prop_firm:
+        if client_prop_firm and isinstance(client_prop_firm, dict) and "current_equity" in client_prop_firm and client_prop_firm["current_equity"] != pf.get("day_start_equity"):
             equity = round(float(client_prop_firm["current_equity"]), 2)
         else:
             prev_eq = float(pf.get("current_equity", account_size))
@@ -733,28 +733,57 @@ class SimulatorService:
         self.save_game_state(state)
         return pf
 
-    def activate_funded_account(self, consistency_rule_pct: float = 40.0) -> Dict[str, Any]:
+    def activate_funded_account(
+        self,
+        consistency_rule_pct: float = 40.0,
+        client_prop_firm: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Promotes trader from cleared Evaluation to live Funded Account simulation."""
         state = self.load_game_state()
-        pf = state.get("prop_firm", self.get_default_prop_firm_state())
+        if client_prop_firm and isinstance(client_prop_firm, dict) and client_prop_firm.get("account_size"):
+            pf = client_prop_firm
+        else:
+            pf = state.get("prop_firm", self.get_default_prop_firm_state())
 
-        account_size = pf["account_size"]
-        max_dd_amount = pf["max_drawdown_amount"]
+        account_size = float(pf.get("account_size", 50000.0))
+        max_dd_pct = float(pf.get("max_drawdown_pct", 5.0))
+        max_dd_amount = float(pf.get("max_drawdown_amount", round(account_size * (max_dd_pct / 100.0), 2)))
+        dll_enabled = bool(pf.get("daily_loss_limit_enabled", True))
+        dll_pct = float(pf.get("daily_loss_limit_pct", 3.0))
+        dll_amount = float(pf.get("daily_loss_limit_amount", round(account_size * (dll_pct / 100.0), 2)))
+        drawdown_type = pf.get("drawdown_type", "eod_trailing")
 
         pf["phase"] = "funded"
         pf["status"] = "active"
+        pf["account_size"] = account_size
+        pf["drawdown_type"] = drawdown_type
+        pf["max_drawdown_pct"] = max_dd_pct
+        pf["max_drawdown_amount"] = max_dd_amount
+        pf["daily_loss_limit_enabled"] = dll_enabled
+        pf["daily_loss_limit_pct"] = dll_pct
+        pf["daily_loss_limit_amount"] = dll_amount
         pf["consistency_rule_pct"] = consistency_rule_pct
         pf["current_equity"] = account_size
         pf["day_start_equity"] = account_size
         pf["high_water_mark"] = account_size
-        pf["drawdown_floor"] = round(account_size - max_dd_amount, 2)
+        floor = round(account_size - max_dd_amount, 2)
+        pf["drawdown_floor"] = floor
+        pf["initial_drawdown_floor"] = floor
         pf["total_pnl"] = 0.0
         pf["days_traded"] = 0
+        pf["trading_days_count"] = 0
         pf["daily_history"] = []
         pf["daily_loss_locked"] = False
+        pf["day_dll_breached"] = False
+        pf["largest_day_profit"] = 0.0
+        pf["largest_day_pct"] = 0.0
         pf["highest_day_pnl"] = 0.0
         pf["highest_day_pct"] = 0.0
+        pf["consistency_satisfied"] = True
         pf["failure_reason"] = None
+        pf["pass_date"] = None
+        pf.setdefault("lifetime_payouts", 0.0)
+        pf.setdefault("payout_history", [])
 
         state["usd_starting_balance"] = account_size
         state["usd_current_balance"] = account_size
@@ -766,30 +795,46 @@ class SimulatorService:
         self.save_game_state(state)
         return pf
 
-    def request_simulated_payout(self, amount: float) -> Dict[str, Any]:
+    def request_simulated_payout(
+        self,
+        amount: float,
+        client_prop_firm: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Simulates requesting a prop firm payout from accumulated funded profits."""
         state = self.load_game_state()
-        pf = state.get("prop_firm")
+        if client_prop_firm and isinstance(client_prop_firm, dict) and client_prop_firm.get("account_size"):
+            pf = client_prop_firm
+        else:
+            pf = state.get("prop_firm")
+
         if not pf or pf.get("phase") != "funded" or pf.get("status") != "active":
             raise ValueError("Payouts are only available on active Funded accounts.")
 
-        account_size = pf["account_size"]
-        current_equity = pf["current_equity"]
-        profit_available = current_equity - account_size
+        account_size = float(pf["account_size"])
+        current_equity = float(pf["current_equity"])
+        profit_available = round(current_equity - account_size, 2)
 
         if amount <= 0:
             raise ValueError("Payout amount must be greater than $0.")
         if amount > profit_available:
             raise ValueError(f"Requested payout ${amount:,.2f} exceeds available funded profit ${profit_available:,.2f}.")
 
+        # Check consistency rule if enabled
+        rule_pct = float(pf.get("consistency_rule_pct", 0.0))
+        largest_pct = float(pf.get("largest_day_pct", 0.0))
+        if rule_pct > 0 and largest_pct > rule_pct:
+            raise ValueError(f"Consistency rule not met: Best day profit is {largest_pct:.1f}%, exceeding the {rule_pct:.1f}% limit.")
+
         # Deduct payout
         new_equity = round(current_equity - amount, 2)
         pf["current_equity"] = new_equity
         pf["total_pnl"] = round(new_equity - account_size, 2)
-        pf["lifetime_payouts"] = round(pf.get("lifetime_payouts", 0.0) + amount, 2)
+        pf["lifetime_payouts"] = round(float(pf.get("lifetime_payouts", 0.0)) + amount, 2)
 
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         payout_record = {
             "amount": amount,
+            "date": now_str,
             "remaining_equity": new_equity,
             "timestamp": int(datetime.utcnow().timestamp())
         }

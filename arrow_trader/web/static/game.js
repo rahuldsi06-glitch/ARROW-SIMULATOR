@@ -4297,11 +4297,22 @@
 
     async activateFundedAccount(consistencyChoice) {
       try {
+        const basePf = this.propFirm || this.getDefaultPropFirmState();
+        const cap = parseFloat(basePf.account_size) || (this.usdStartingCapital || 50000.0);
+        const mddPct = parseFloat(basePf.max_drawdown_pct) || 5.0;
+        const mddAmt = parseFloat(basePf.max_drawdown_amount) || Math.round(cap * (mddPct / 100));
+        const dllEnabled = (typeof basePf.daily_loss_limit_enabled === "boolean") ? basePf.daily_loss_limit_enabled : true;
+        const dllPct = parseFloat(basePf.daily_loss_limit_pct) || 3.0;
+        const dllAmt = parseFloat(basePf.daily_loss_limit_amount) || Math.round(cap * (dllPct / 100));
+        const ddType = basePf.drawdown_type || "eod_trailing";
+        const minDays = parseInt(basePf.min_trading_days) || 2;
+
         const res = await fetch("/api/game/propfirm/activate-funded", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            consistency_rule_pct: consistencyChoice
+            consistency_rule_pct: consistencyChoice,
+            prop_firm: this.propFirm
           })
         });
 
@@ -4309,22 +4320,48 @@
           const data = await res.json();
           this.propFirm = data.prop_firm;
           if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
-            this.propFirm.daily_loss_limit_enabled = true;
+            this.propFirm.daily_loss_limit_enabled = dllEnabled;
           }
         } else {
-          this.propFirm.phase = "funded";
-          this.propFirm.status = "passed";
-          this.propFirm.consistency_rule_pct = consistencyChoice;
-          this.propFirm.current_equity = this.propFirm.account_size;
-          this.propFirm.drawdown_floor = this.propFirm.account_size - this.propFirm.max_drawdown_amount;
+          this.propFirm = {
+            enabled: true,
+            phase: "funded",
+            status: "active",
+            account_size: cap,
+            current_equity: cap,
+            high_water_mark: cap,
+            drawdown_type: ddType,
+            max_drawdown_pct: mddPct,
+            max_drawdown_amount: mddAmt,
+            drawdown_floor: cap - mddAmt,
+            initial_drawdown_floor: cap - mddAmt,
+            daily_loss_limit_enabled: dllEnabled,
+            daily_loss_limit_pct: dllPct,
+            daily_loss_limit_amount: dllAmt,
+            consistency_rule_pct: consistencyChoice,
+            min_trading_days: minDays,
+            trading_days_count: 0,
+            days_traded: 0,
+            day_start_equity: cap,
+            day_pnl: 0.0,
+            day_dll_breached: false,
+            largest_day_profit: 0.0,
+            largest_day_pct: 0.0,
+            highest_day_pnl: 0.0,
+            highest_day_pct: 0.0,
+            consistency_satisfied: true,
+            daily_history: [],
+            lifetime_payouts: basePf.lifetime_payouts || 0.0,
+            payout_history: basePf.payout_history || []
+          };
         }
 
-        const cap = this.propFirm.account_size;
-        this.startingCapital = cap;
-        this.currentCapital = cap;
-        this.usdStartingCapital = cap;
-        this.usdCurrentCapital = cap;
-        this.dayStartCapital = cap;
+        const fundedCap = this.propFirm.account_size;
+        this.startingCapital = fundedCap;
+        this.currentCapital = fundedCap;
+        this.usdStartingCapital = fundedCap;
+        this.usdCurrentCapital = fundedCap;
+        this.dayStartCapital = fundedCap;
         this.dayPnL = 0;
         this.tradeJournal = [];
 
@@ -4335,7 +4372,8 @@
         this.dom.modalPropFirmPassed.classList.add("hidden");
         this.audio.playTargetWin();
 
-        alert("🎉 CONGRATULATIONS! Your FUNDED ACCOUNT is now active. Trade with discipline and secure your payouts!");
+        const consLabel = consistencyChoice === 0 ? "No" : `${consistencyChoice}%`;
+        alert(`🎉 CONGRATULATIONS! Your $${fundedCap.toLocaleString()} FUNDED ACCOUNT is now active with ${consLabel} consistency rule. Trade with discipline and secure your payouts!`);
         this.startNewSession(this.currentSymbol);
       } catch (e) {
         console.error("Funded account activation failed:", e);
@@ -4348,14 +4386,14 @@
 
       const curBal = this.currentCapital;
       const safetyBuf = pf.account_size;
-      const availProfit = Math.max(0, curBal - safetyBuf);
+      const availProfit = Math.max(0, Math.round((curBal - safetyBuf) * 100) / 100);
 
       if (this.dom.pfPayoutCurBal) this.dom.pfPayoutCurBal.innerText = this.formatCurrency(curBal);
       if (this.dom.pfPayoutSafetyBuf) this.dom.pfPayoutSafetyBuf.innerText = this.formatCurrency(safetyBuf);
       if (this.dom.pfPayoutAvailProfit) this.dom.pfPayoutAvailProfit.innerText = this.formatCurrency(availProfit);
       if (this.dom.pfInputPayoutAmount) {
         this.dom.pfInputPayoutAmount.max = availProfit;
-        this.dom.pfInputPayoutAmount.value = Math.min(availProfit, 2000);
+        this.dom.pfInputPayoutAmount.value = availProfit > 0 ? Math.min(availProfit, 2000) : 0;
       }
       if (this.dom.pfLifetimePayouts) {
         this.dom.pfLifetimePayouts.innerText = this.formatCurrency(pf.lifetime_payouts || 0);
@@ -4363,8 +4401,8 @@
 
       // Check consistency rule
       const rulePct = pf.consistency_rule_pct || 0;
-      const lPct = pf.largest_day_pct || 0;
-      const isConsistent = rulePct === 0 || lPct <= rulePct;
+      const lPct = (typeof pf.largest_day_pct === "number") ? pf.largest_day_pct : (pf.highest_day_pct || 0);
+      const isConsistent = (rulePct === 0) || (lPct <= rulePct);
       if (this.dom.pfChkConsIcon && this.dom.pfChkConsText) {
         if (rulePct === 0) {
           this.dom.pfChkConsIcon.innerText = "✅";
@@ -4375,6 +4413,27 @@
         }
       }
 
+      // Buffer / Profit check row
+      const bufRowIcon = document.getElementById("pf-chk-buf-icon");
+      const bufRowText = document.getElementById("pf-chk-buf-text");
+      if (bufRowIcon && bufRowText) {
+        if (availProfit > 0) {
+          bufRowIcon.innerText = "✅";
+          bufRowText.innerText = `Profits exist above starting buffer ($${availProfit.toLocaleString()} available)`;
+        } else {
+          bufRowIcon.innerText = "❌";
+          bufRowText.innerText = `No profits above starting cushion ($${safetyBuf.toLocaleString()} buffer required)`;
+        }
+      }
+
+      // Confirm button state & styling
+      if (this.dom.btnConfirmPayout) {
+        const canPayout = availProfit > 0 && isConsistent;
+        this.dom.btnConfirmPayout.disabled = !canPayout;
+        this.dom.btnConfirmPayout.style.opacity = canPayout ? "1" : "0.5";
+        this.dom.btnConfirmPayout.style.cursor = canPayout ? "pointer" : "not-allowed";
+      }
+
       // Render payout list
       if (this.dom.pfPayoutList) {
         const hist = pf.payout_history || [];
@@ -4382,8 +4441,9 @@
           this.dom.pfPayoutList.innerHTML = `<div class="empty-hint">No payouts requested yet.</div>`;
         } else {
           const items = hist.map(p => `
-            <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
               <span>${p.date || "Session"}</span>
+              <span class="font-mono" style="opacity:0.7;">Remaining: $${(p.remaining_equity || 0).toLocaleString()}</span>
               <b class="glow-green font-mono">+$${p.amount.toLocaleString()}</b>
             </div>
           `);
@@ -4398,37 +4458,76 @@
     async processPropFirmPayout() {
       const amount = parseFloat(this.dom.pfInputPayoutAmount.value) || 0;
       if (amount <= 0) {
-        alert("Please enter a valid payout amount.");
+        alert("Please enter a valid payout amount greater than $0.");
         return;
       }
 
+      const pf = this.propFirm;
+      if (!pf || pf.phase !== "funded" || pf.status !== "active") {
+        alert("Payouts are only available on active Funded accounts.");
+        return;
+      }
+
+      const availProfit = Math.max(0, Math.round((this.currentCapital - pf.account_size) * 100) / 100);
+      if (amount > availProfit) {
+        alert(`Requested payout ($${amount.toLocaleString()}) exceeds available profit ($${availProfit.toLocaleString()}).`);
+        return;
+      }
+
+      const rulePct = pf.consistency_rule_pct || 0;
+      const lPct = (typeof pf.largest_day_pct === "number") ? pf.largest_day_pct : (pf.highest_day_pct || 0);
+      if (rulePct > 0 && lPct > rulePct) {
+        alert(`Consistency rule not met: Best day profit is ${lPct.toFixed(1)}%, which exceeds your ${rulePct.toFixed(1)}% limit. Trade more sessions to balance your distribution.`);
+        return;
+      }
+
+      // Immediate client-side deduction so payout is honored cleanly
+      const newEquity = Math.round((this.currentCapital - amount) * 100) / 100;
+      pf.current_equity = newEquity;
+      pf.total_pnl = Math.round((newEquity - pf.account_size) * 100) / 100;
+      pf.lifetime_payouts = Math.round(((pf.lifetime_payouts || 0) + amount) * 100) / 100;
+      const dateStr = this.session ? (this.session.date || "Today") : "Today";
+      pf.payout_history = pf.payout_history || [];
+      pf.payout_history.push({
+        amount: amount,
+        date: dateStr,
+        remaining_equity: newEquity,
+        timestamp: Date.now()
+      });
+
+      this.currentCapital = newEquity;
+      this.usdCurrentCapital = newEquity;
+      this.dayStartCapital = newEquity;
+
+      this.saveState();
+      this.updateHUD();
+      this.renderPropFirmHUD();
+      this.dom.modalPropFirmPayout.classList.add("hidden");
+      this.audio.playTargetWin();
+
+      alert(`💰 Simulated Payout of $${amount.toLocaleString()} Approved and Processed! Congratulations on your withdrawal!`);
+
+      // Sync payout to backend
       try {
         const res = await fetch("/api/game/propfirm/payout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount })
+          body: JSON.stringify({
+            amount: amount,
+            prop_firm: this.propFirm
+          })
         });
 
-        if (!res.ok) {
-          const err = await res.json();
-          alert(err.detail || "Payout request failed");
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.prop_firm) {
+            this.propFirm = Object.assign({}, this.propFirm, data.prop_firm);
+            this.saveState();
+            this.renderPropFirmHUD();
+          }
         }
-
-        const data = await res.json();
-        this.propFirm = data.prop_firm;
-        this.currentCapital = this.propFirm.current_equity;
-        this.usdCurrentCapital = this.currentCapital;
-
-        this.saveState();
-        this.updateHUD();
-        this.renderPropFirmHUD();
-        this.dom.modalPropFirmPayout.classList.add("hidden");
-        this.audio.playTargetWin();
-
-        alert(`💰 Simulated Payout of $${amount.toLocaleString()} Approved and Processed! Congratulations!`);
       } catch (e) {
-        alert("Failed to process payout: " + e.message);
+        console.warn("Backend payout sync notice:", e);
       }
     }
 
