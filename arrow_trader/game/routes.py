@@ -66,6 +66,7 @@ class PropFirmSetupRequest(BaseModel):
     account_size: float = 50000.0
     drawdown_type: str = "eod_trailing"  # 'static' or 'eod_trailing'
     max_drawdown_pct: float = 5.0
+    daily_loss_limit_enabled: bool = True
     daily_loss_limit_pct: Optional[float] = 3.0
     profit_target_pct: float = 6.0
     min_trading_days: int = 2
@@ -75,6 +76,7 @@ class PropFirmEODRequest(BaseModel):
     date: Optional[str] = ""
     day_pnl: float = 0.0
     trades_count: int = 1
+    prop_firm: Optional[Dict[str, Any]] = None
 
 
 class PropFirmFundedRequest(BaseModel):
@@ -242,9 +244,10 @@ def setup_propfirm(req: PropFirmSetupRequest) -> Dict[str, Any]:
             account_size=req.account_size,
             drawdown_type=req.drawdown_type,
             max_dd_pct=req.max_drawdown_pct,
-            dll_pct=req.daily_loss_limit_pct,
+            dll_pct=req.daily_loss_limit_pct if req.daily_loss_limit_enabled else 0.0,
             target_pct=req.profit_target_pct,
-            min_days=req.min_trading_days
+            min_days=req.min_trading_days,
+            daily_loss_limit_enabled=req.daily_loss_limit_enabled
         )
         return {
             "status": "success",
@@ -260,9 +263,10 @@ def process_propfirm_eod(req: PropFirmEODRequest) -> Dict[str, Any]:
     """Completes simulated trading day, recalculates EOD trailing floor & evaluation progress."""
     try:
         pf = simulator.process_prop_firm_eod(
-            date_str=req.date,
+            date_str=req.date or "",
             day_pnl=req.day_pnl,
-            trades_count=req.trades_count
+            trades_count=req.trades_count,
+            client_prop_firm=req.prop_firm
         )
         return {
             "status": "success",

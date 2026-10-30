@@ -603,6 +603,73 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertIn("Max Drawdown Breached", pf["failure_reason"])
 
 
+    def test_prop_firm_multi_day_stat_carryforward_and_client_state_preservation(self):
+        # 1. Custom $100k account setup (4% MDD, 2.5% DLL, 8% Target, 2 days)
+        setup_res = self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 100000.0,
+            "drawdown_type": "eod_trailing",
+            "max_drawdown_pct": 4.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 2.5,
+            "profit_target_pct": 8.0,
+            "min_trading_days": 2
+        })
+        self.assertEqual(setup_res.status_code, 200)
+        pf = setup_res.json()["prop_firm"]
+        self.assertEqual(pf["account_size"], 100000.0)
+        self.assertEqual(pf["max_drawdown_amount"], 4000.0)
+        self.assertEqual(pf["daily_loss_limit_amount"], 2500.0)
+        self.assertEqual(pf["profit_target_amount"], 8000.0)
+        self.assertTrue(pf["daily_loss_limit_enabled"])
+
+        # 2. End of Day 1: +$1,500 profit
+        pf["current_equity"] = 101500.0
+        d1_res = self.client.post("/api/game/propfirm/eod", json={
+            "date": "2026-10-10",
+            "day_pnl": 1500.0,
+            "trades_count": 2,
+            "prop_firm": pf
+        })
+        self.assertEqual(d1_res.status_code, 200)
+        pf1 = d1_res.json()["prop_firm"]
+
+        # Ensure Day 1 stats carried forward and not reset to 50k defaults
+        self.assertEqual(pf1["account_size"], 100000.0)
+        self.assertEqual(pf1["current_equity"], 101500.0)
+        self.assertEqual(pf1["high_water_mark"], 101500.0)
+        self.assertEqual(pf1["drawdown_floor"], 97500.0)  # 101500 - 4000
+        self.assertEqual(pf1["profit_target_amount"], 8000.0)
+        self.assertEqual(pf1["total_pnl"], 1500.0)
+        self.assertEqual(pf1["trading_days_count"], 1)
+        self.assertTrue(pf1["daily_loss_limit_enabled"])
+        self.assertEqual(pf1["daily_loss_limit_amount"], 2500.0)
+        self.assertEqual(pf1["day_start_equity"], 101500.0)
+
+        # 3. End of Day 2: +$2,000 profit
+        pf1["current_equity"] = 103500.0
+        d2_res = self.client.post("/api/game/propfirm/eod", json={
+            "date": "2026-10-11",
+            "day_pnl": 2000.0,
+            "trades_count": 3,
+            "prop_firm": pf1
+        })
+        self.assertEqual(d2_res.status_code, 200)
+        pf2 = d2_res.json()["prop_firm"]
+
+        # Ensure Day 2 stats accumulated correctly
+        self.assertEqual(pf2["account_size"], 100000.0)
+        self.assertEqual(pf2["current_equity"], 103500.0)
+        self.assertEqual(pf2["high_water_mark"], 103500.0)
+        self.assertEqual(pf2["drawdown_floor"], 99500.0)  # 103500 - 4000
+        self.assertEqual(pf2["profit_target_amount"], 8000.0)
+        self.assertEqual(pf2["total_pnl"], 3500.0)
+        self.assertEqual(pf2["trading_days_count"], 2)
+        self.assertTrue(pf2["daily_loss_limit_enabled"])
+        self.assertEqual(pf2["daily_loss_limit_amount"], 2500.0)
+        self.assertEqual(len(pf2["daily_history"]), 2)
+        self.assertEqual(pf2["status"], "active")
+
+
 if __name__ == "__main__":
     unittest.main()
 

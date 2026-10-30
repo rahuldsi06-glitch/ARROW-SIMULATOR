@@ -780,7 +780,12 @@
             this.updateAudioButtonState();
           }
           if (s.propFirm) {
-            this.propFirm = Object.assign(this.getDefaultPropFirmState(), s.propFirm);
+            const accSize = s.propFirm.account_size || (this.currentMarket === "US" ? this.usdStartingCapital : 50000.0);
+            const defaultPf = this.getDefaultPropFirmState(accSize);
+            this.propFirm = Object.assign({}, defaultPf, s.propFirm);
+            if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
+              this.propFirm.daily_loss_limit_enabled = true;
+            }
           }
         }
       } catch (e) {}
@@ -834,7 +839,12 @@
               this.dayStartCapital = this.currentCapital;
             }
             if (st.prop_firm && !hasLocal) {
-              this.propFirm = Object.assign(this.getDefaultPropFirmState(), st.prop_firm);
+              const accSize = st.prop_firm.account_size || 50000.0;
+              const defaultPf = this.getDefaultPropFirmState(accSize);
+              this.propFirm = Object.assign({}, defaultPf, st.prop_firm);
+              if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
+                this.propFirm.daily_loss_limit_enabled = true;
+              }
             }
             if (st.xp) this.xp = st.xp || this.xp;
             if (st.rank) this.rank = st.rank || this.rank;
@@ -1081,11 +1091,18 @@
       this.cancelChartAction();
       this.customSLPrice = null;
       this.customTargetPrice = null;
+
+      // If advancing to a new day after trading, ensure previous day EOD was cleanly finalized
+      if (this.currentMarket === "US" && this.propFirm && (this.tradeJournal.length > 0 || this.dayPnL !== 0) && !this.dayEodProcessed) {
+        await this.processPropFirmEOD();
+      }
+
+      this.dayEodProcessed = false;
       this.dayStartCapital = this.currentCapital;
       this.dayPnL = 0.0;
       this.tradeJournal = [];
 
-      // Reset intraday DLL state for new day in US mode
+      // Reset intraday DLL state for new day in US mode (stats like Account, Target, Floor are preserved!)
       if (this.currentMarket === "US" && this.propFirm) {
         this.propFirm.day_dll_breached = false;
         this.propFirm.day_start_equity = this.currentCapital;
@@ -3125,7 +3142,7 @@
     // ========================================================================
     // END OF DAY (EOD) PERFORMANCE REPORT MODAL
     // ========================================================================
-    onEndOfDayReached() {
+    async onEndOfDayReached() {
       // Auto square off any open position
       if (this.activePosition) {
         const lastCandle = this.session.candles[this.session.total_bars - 1];
@@ -3157,12 +3174,13 @@
       else tier = "Risk Management Apprentice ⭐";
       document.getElementById("eod-tier-name").innerText = tier;
 
+      this.dayEodProcessed = true;
+      if (this.currentMarket === "US" && this.propFirm) {
+        await this.processPropFirmEOD();
+      }
+
       this.saveState();
       this.dom.modalEod.classList.remove("hidden");
-
-      if (this.currentMarket === "US" && this.propFirm) {
-        this.processPropFirmEOD();
-      }
     }
 
     // ========================================================================
@@ -3658,6 +3676,7 @@
         if (this.currentMarket === "US") {
           this.usdStartingCapital = val;
           this.usdCurrentCapital = val;
+          this.propFirm = this.getDefaultPropFirmState(val);
         } else {
           this.inrStartingCapital = val;
           this.inrCurrentCapital = val;
@@ -3669,6 +3688,9 @@
         this.tradeJournal = [];
         this.renderJournal();
         this.updateHUD();
+        if (this.currentMarket === "US") {
+          this.renderPropFirmHUD();
+        }
         this.saveState();
         this.dom.modalSettings.classList.add("hidden");
         this.audio.playClick();
@@ -3751,32 +3773,36 @@
     // PROP FIRM COMBINE / EVALUATION METHODS
     // ========================================================================
 
-    getDefaultPropFirmState() {
+    getDefaultPropFirmState(customSize = null) {
+      const cap = customSize || 50000.0;
       return {
         enabled: true,
         phase: "evaluation", // 'evaluation' | 'funded' | 'failed'
-        status: "in_progress", // 'in_progress' | 'target_reached' | 'passed' | 'failed'
-        account_size: 50000.0,
-        current_equity: 50000.0,
-        high_water_mark: 50000.0,
+        status: "active", // 'active' | 'passed' | 'failed'
+        account_size: cap,
+        current_equity: cap,
+        high_water_mark: cap,
         drawdown_type: "eod_trailing", // 'eod_trailing' | 'static'
         max_drawdown_pct: 5.0,
-        max_drawdown_amount: 2500.0,
-        drawdown_floor: 47500.0,
-        initial_drawdown_floor: 47500.0,
+        max_drawdown_amount: Math.round(cap * 0.05),
+        drawdown_floor: cap - Math.round(cap * 0.05),
+        initial_drawdown_floor: cap - Math.round(cap * 0.05),
         daily_loss_limit_enabled: true,
         daily_loss_limit_pct: 3.0,
-        daily_loss_limit_amount: 1500.0,
+        daily_loss_limit_amount: Math.round(cap * 0.03),
         profit_target_pct: 6.0,
-        profit_target_amount: 3000.0,
+        profit_target_amount: Math.round(cap * 0.06),
         min_trading_days: 2,
         trading_days_count: 0,
-        day_start_equity: 50000.0,
+        days_traded: 0,
+        day_start_equity: cap,
         day_pnl: 0.0,
         day_dll_breached: false,
         consistency_rule_pct: 40.0,
         largest_day_profit: 0.0,
         largest_day_pct: 0.0,
+        highest_day_pnl: 0.0,
+        highest_day_pct: 0.0,
         consistency_satisfied: true,
         daily_history: [],
         payout_history: [],
@@ -3798,32 +3824,32 @@
       // Phase badge styling
       const phase = pf.phase || "evaluation";
       this.dom.propFirmHudBar.classList.toggle("funded-active", phase === "funded");
-      this.dom.propFirmHudBar.classList.toggle("busted-active", phase === "failed");
+      this.dom.propFirmHudBar.classList.toggle("busted-active", phase === "failed" || pf.status === "failed");
 
       if (this.dom.pfPhaseBadge) {
-        this.dom.pfPhaseBadge.className = `pf-phase-badge ${phase}`;
+        this.dom.pfPhaseBadge.className = `pf-phase-badge ${pf.status === "failed" ? "failed" : phase}`;
       }
       if (this.dom.pfPhaseText) {
-        this.dom.pfPhaseText.innerText = phase === "funded" ? "FUNDED ACCOUNT" : (phase === "failed" ? "BUSTED / FAILED" : "EVALUATION");
+        this.dom.pfPhaseText.innerText = (phase === "funded") ? "FUNDED ACCOUNT" : ((pf.status === "failed" || phase === "failed") ? "BUSTED / FAILED" : "EVALUATION");
       }
       if (this.dom.pfPhaseIcon) {
-        this.dom.pfPhaseIcon.innerText = phase === "funded" ? "🟢" : (phase === "failed" ? "💀" : "🏆");
+        this.dom.pfPhaseIcon.innerText = (phase === "funded") ? "🟢" : ((pf.status === "failed" || phase === "failed") ? "💀" : "🏆");
       }
 
       // Account size label
       if (this.dom.pfAccountSizeLabel) {
-        this.dom.pfAccountSizeLabel.innerText = this.formatCurrency(pf.account_size, true, 0);
+        this.dom.pfAccountSizeLabel.innerText = this.formatCurrency(pf.account_size || 50000, true, 0);
       }
 
       // Profit target progress
       if (this.dom.pfTargetVal && this.dom.pfTargetBar) {
         if (phase === "funded") {
-          const withdrawable = Math.max(0, equity - pf.account_size);
+          const withdrawable = Math.max(0, equity - (pf.account_size || 50000));
           this.dom.pfTargetVal.innerText = `Withdrawable: ${this.formatCurrency(withdrawable, true, 0)}`;
           this.dom.pfTargetBar.style.width = "100%";
         } else {
-          const profitEarned = Math.max(0, equity - pf.account_size);
-          const target = pf.profit_target_amount || (pf.account_size * 0.06);
+          const profitEarned = Math.max(0, equity - (pf.account_size || 50000));
+          const target = pf.profit_target_amount || Math.round((pf.account_size || 50000) * ((pf.profit_target_pct || 6.0) / 100));
           const pct = Math.min(100, Math.max(0, (profitEarned / target) * 100));
           this.dom.pfTargetVal.innerText = `${this.formatCurrency(profitEarned, true, 0)} / ${this.formatCurrency(target, true, 0)} (${pct.toFixed(1)}%)`;
           this.dom.pfTargetBar.style.width = `${pct}%`;
@@ -3831,7 +3857,8 @@
       }
 
       // Drawdown Floor & Buffer
-      const floor = pf.drawdown_floor || (pf.account_size - (pf.max_drawdown_amount || 2500));
+      const maxDDAmt = pf.max_drawdown_amount || Math.round((pf.account_size || 50000) * ((pf.max_drawdown_pct || 5.0) / 100));
+      const floor = (typeof pf.drawdown_floor === "number") ? pf.drawdown_floor : ((pf.account_size || 50000) - maxDDAmt);
       const buffer = Math.round((equity - floor) * 100) / 100;
       if (this.dom.pfDdTypeLabel) {
         this.dom.pfDdTypeLabel.innerText = pf.drawdown_type === "static" ? "STATIC DD FLOOR" : "EOD TRAILING FLOOR";
@@ -3846,12 +3873,12 @@
 
       // Daily Loss Limit
       if (this.dom.pfDllVal && this.dom.pfDllLeft) {
-        if (!pf.daily_loss_limit_enabled) {
+        if (pf.daily_loss_limit_enabled === false) {
           this.dom.pfDllVal.innerText = "No DLL (Apex)";
           this.dom.pfDllLeft.innerText = "Unlimited";
           this.dom.pfDllLeft.className = "pf-sub-val font-mono";
         } else {
-          const maxLoss = pf.daily_loss_limit_amount || 1500;
+          const maxLoss = pf.daily_loss_limit_amount || Math.round((pf.account_size || 50000) * ((pf.daily_loss_limit_pct || 3.0) / 100));
           const left = Math.round((maxLoss + todayPnl) * 100) / 100;
           this.dom.pfDllVal.innerText = `Max -${this.formatCurrency(maxLoss, true, 0)}`;
           this.dom.pfDllLeft.innerText = `${this.formatCurrency(Math.max(0, left))} Left`;
@@ -3861,7 +3888,7 @@
 
       // Days Traded & Consistency
       if (this.dom.pfDaysVal) {
-        const days = pf.trading_days_count || 0;
+        const days = (typeof pf.trading_days_count === "number") ? pf.trading_days_count : (pf.days_traded || 0);
         const minDays = pf.min_trading_days || 2;
         this.dom.pfDaysVal.innerText = `Day ${days} (Min ${minDays})`;
       }
@@ -3870,7 +3897,7 @@
           this.dom.pfConsistencyVal.innerText = "No Rule (OK)";
           this.dom.pfConsistencyVal.className = "pf-sub-val font-mono";
         } else {
-          const lPct = pf.largest_day_pct || 0;
+          const lPct = (typeof pf.largest_day_pct === "number") ? pf.largest_day_pct : (pf.highest_day_pct || 0);
           const pass = lPct <= pf.consistency_rule_pct;
           this.dom.pfConsistencyVal.innerText = `${lPct.toFixed(1)}% (${pass ? "OK" : "High"})`;
           this.dom.pfConsistencyVal.className = `pf-sub-val font-mono ${pass ? "glow-green" : "glow-red"}`;
@@ -3927,42 +3954,118 @@
       if (this.currentMarket !== "US" || !this.propFirm) return;
 
       const dateStr = this.session ? (this.session.date || "") : "";
+      const equity = Math.round(this.currentCapital * 100) / 100;
+      const tradesCount = this.tradeJournal.length;
+      const accountSize = parseFloat(this.propFirm.account_size) || 50000.0;
+      const maxDDAmount = parseFloat(this.propFirm.max_drawdown_amount) || Math.round(accountSize * ((this.propFirm.max_drawdown_pct || 5.0) / 100));
+
+      // 1. Synchronous, deterministic client-side update
+      this.propFirm.current_equity = equity;
+      this.propFirm.total_pnl = Math.round((equity - accountSize) * 100) / 100;
+
+      if (tradesCount > 0 || this.dayPnL !== 0) {
+        this.propFirm.trading_days_count = (this.propFirm.trading_days_count || 0) + 1;
+        this.propFirm.days_traded = this.propFirm.trading_days_count;
+      }
+
+      // Update High-Water Mark
+      const hwm = Math.max(parseFloat(this.propFirm.high_water_mark || accountSize), equity);
+      this.propFirm.high_water_mark = hwm;
+
+      // Update Drawdown Floor
+      if (this.propFirm.drawdown_type === "eod_trailing") {
+        const rawFloor = Math.round((hwm - maxDDAmount) * 100) / 100;
+        const curFloor = parseFloat(this.propFirm.drawdown_floor) || (accountSize - maxDDAmount);
+        const ratchetedFloor = Math.max(curFloor, rawFloor);
+        // Lock at starting balance once in profit
+        this.propFirm.drawdown_floor = Math.min(accountSize, ratchetedFloor);
+      } else {
+        this.propFirm.drawdown_floor = Math.round((accountSize - maxDDAmount) * 100) / 100;
+      }
+
+      // Daily History
+      this.propFirm.daily_history = this.propFirm.daily_history || [];
+      this.propFirm.daily_history.push({
+        day_num: this.propFirm.trading_days_count,
+        date: dateStr || `Day ${this.propFirm.trading_days_count}`,
+        pnl: Math.round(this.dayPnL * 100) / 100,
+        trades: tradesCount,
+        close_equity: equity,
+        floor: this.propFirm.drawdown_floor,
+        high_water_mark: this.propFirm.high_water_mark
+      });
+
+      // Recalculate largest day profit & consistency %
+      const profitableDays = this.propFirm.daily_history.filter(d => d.pnl > 0).map(d => d.pnl);
+      const totalProfit = profitableDays.reduce((a, b) => a + b, 0);
+      if (totalProfit > 0 && profitableDays.length > 0) {
+        const maxDay = Math.max(...profitableDays);
+        this.propFirm.largest_day_profit = maxDay;
+        this.propFirm.highest_day_pnl = maxDay;
+        this.propFirm.largest_day_pct = Math.round((maxDay / totalProfit) * 1000) / 10;
+        this.propFirm.highest_day_pct = this.propFirm.largest_day_pct;
+        const rulePct = parseFloat(this.propFirm.consistency_rule_pct) || 40.0;
+        this.propFirm.consistency_satisfied = (rulePct === 0) || (this.propFirm.largest_day_pct <= rulePct);
+      }
+
+      // Check breach or pass
+      if (equity <= this.propFirm.drawdown_floor) {
+        this.propFirm.status = "failed";
+        this.propFirm.phase = "failed";
+        this.propFirm.failure_reason = `Max Drawdown Breached: Equity ($${equity.toLocaleString()}) hit floor ($${this.propFirm.drawdown_floor.toLocaleString()})`;
+      } else if (this.propFirm.phase === "evaluation" && this.propFirm.status !== "failed") {
+        const targetAmount = parseFloat(this.propFirm.profit_target_amount) || Math.round(accountSize * ((this.propFirm.profit_target_pct || 6.0) / 100));
+        const minDays = parseInt(this.propFirm.min_trading_days) || 2;
+        if (this.propFirm.total_pnl >= targetAmount && this.propFirm.trading_days_count >= minDays) {
+          this.propFirm.status = "passed";
+          this.propFirm.pass_date = dateStr;
+        }
+      }
+
+      // Reset day baseline for next day
+      this.propFirm.day_start_equity = equity;
+      this.propFirm.day_dll_breached = false;
+      this.dayStartCapital = equity;
+
+      // Save client state immediately so UI and storage are always preserved
+      this.saveState();
+      this.renderPropFirmHUD();
+
+      // Show celebration or failure modals
+      if (this.propFirm.status === "passed" || this.propFirm.phase === "passed") {
+        this.showPropFirmPassedModal();
+      } else if (this.propFirm.status === "failed") {
+        this.showPropFirmFailedModal(this.currentCapital);
+      }
+
+      // Sync to backend (pass full client state so server never reverts to 50k defaults)
       try {
         const res = await fetch("/api/game/propfirm/eod", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             day_pnl: this.dayPnL,
-            day_index: (this.propFirm.trading_days_count || 0) + 1,
-            date: dateStr
+            date: dateStr,
+            trades_count: tradesCount,
+            prop_firm: this.propFirm
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          this.propFirm = data.prop_firm;
-          this.saveState();
-          this.renderPropFirmHUD();
-
-          if (this.propFirm.status === "passed" || this.propFirm.phase === "passed") {
-            this.showPropFirmPassedModal();
-          } else if (this.propFirm.status === "failed") {
-            this.showPropFirmFailedModal(this.currentCapital);
+          if (data && data.prop_firm) {
+            // Keep critical client settings like daily_loss_limit_enabled
+            const dllEnabled = this.propFirm.daily_loss_limit_enabled;
+            this.propFirm = Object.assign({}, this.propFirm, data.prop_firm);
+            if (typeof dllEnabled === "boolean") {
+              this.propFirm.daily_loss_limit_enabled = dllEnabled;
+            }
+            this.saveState();
+            this.renderPropFirmHUD();
           }
         }
       } catch (e) {
-        console.warn("Prop firm EOD call fallback:", e);
-        this.propFirm.trading_days_count = (this.propFirm.trading_days_count || 0) + 1;
-        this.propFirm.current_equity = this.currentCapital;
-        if (this.currentCapital > (this.propFirm.high_water_mark || this.propFirm.account_size)) {
-          this.propFirm.high_water_mark = this.currentCapital;
-          if (this.propFirm.drawdown_type === "eod_trailing") {
-            const trailed = this.propFirm.high_water_mark - this.propFirm.max_drawdown_amount;
-            this.propFirm.drawdown_floor = Math.max(this.propFirm.drawdown_floor, Math.min(this.propFirm.account_size, trailed));
-          }
-        }
-        this.saveState();
-        this.renderPropFirmHUD();
+        console.warn("Backend prop firm EOD sync notice:", e);
       }
     }
 
@@ -4133,6 +4236,9 @@
         if (res.ok) {
           const data = await res.json();
           this.propFirm = data.prop_firm;
+          if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
+            this.propFirm.daily_loss_limit_enabled = dllEnabled;
+          }
         } else {
           // Local fallback
           this.propFirm = {
@@ -4202,6 +4308,9 @@
         if (res.ok) {
           const data = await res.json();
           this.propFirm = data.prop_firm;
+          if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
+            this.propFirm.daily_loss_limit_enabled = true;
+          }
         } else {
           this.propFirm.phase = "funded";
           this.propFirm.status = "passed";
@@ -4333,6 +4442,9 @@
         if (res.ok) {
           const data = await res.json();
           this.propFirm = data.prop_firm;
+          if (typeof this.propFirm.daily_loss_limit_enabled !== "boolean") {
+            this.propFirm.daily_loss_limit_enabled = true;
+          }
         } else {
           this.propFirm = this.getDefaultPropFirmState();
         }

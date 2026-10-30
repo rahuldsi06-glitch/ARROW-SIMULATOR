@@ -526,11 +526,12 @@ class SimulatorService:
         max_dd_pct: float = 5.0,
         dll_pct: Optional[float] = 3.0,
         target_pct: float = 6.0,
-        min_days: int = 2
+        min_days: int = 2,
+        daily_loss_limit_enabled: bool = True
     ) -> Dict[str, Any]:
         """Returns standard evaluation configuration and live tracking state for Prop Firm mode."""
         max_dd_amount = round(account_size * (max_dd_pct / 100.0), 2)
-        dll_amount = round(account_size * (dll_pct / 100.0), 2) if dll_pct and dll_pct > 0 else 0.0
+        dll_amount = round(account_size * (dll_pct / 100.0), 2) if (daily_loss_limit_enabled and dll_pct and dll_pct > 0) else 0.0
         profit_target_amount = round(account_size * (target_pct / 100.0), 2)
         floor = round(account_size - max_dd_amount, 2)
 
@@ -543,6 +544,7 @@ class SimulatorService:
             "drawdown_type": drawdown_type,         # "static" or "eod_trailing"
             "max_drawdown_pct": max_dd_pct,
             "max_drawdown_amount": max_dd_amount,
+            "daily_loss_limit_enabled": daily_loss_limit_enabled,
             "daily_loss_limit_pct": dll_pct or 0.0,
             "daily_loss_limit_amount": dll_amount,
             "profit_target_pct": target_pct,
@@ -550,15 +552,20 @@ class SimulatorService:
             "min_trading_days": min_days,
             "high_water_mark": account_size,
             "drawdown_floor": floor,
+            "initial_drawdown_floor": floor,
             "day_start_equity": account_size,
             "daily_loss_locked": False,
+            "day_dll_breached": False,
             "days_traded": 0,
             "trading_days_count": 0,
             "daily_history": [],                    # List of day records
             "total_pnl": 0.0,
             "consistency_rule_pct": 40.0,
+            "largest_day_profit": 0.0,
+            "largest_day_pct": 0.0,
             "highest_day_pnl": 0.0,
             "highest_day_pct": 0.0,
+            "consistency_satisfied": True,
             "lifetime_payouts": 0.0,
             "payout_history": [],
             "failure_reason": None,
@@ -611,7 +618,8 @@ class SimulatorService:
         max_dd_pct: float = 5.0,
         dll_pct: Optional[float] = 3.0,
         target_pct: float = 6.0,
-        min_days: int = 2
+        min_days: int = 2,
+        daily_loss_limit_enabled: bool = True
     ) -> Dict[str, Any]:
         """Configures or restarts a Prop Firm Evaluation Challenge."""
         state = self.load_game_state()
@@ -621,7 +629,8 @@ class SimulatorService:
             max_dd_pct=max_dd_pct,
             dll_pct=dll_pct,
             target_pct=target_pct,
-            min_days=min_days
+            min_days=min_days,
+            daily_loss_limit_enabled=daily_loss_limit_enabled
         )
         state["usd_starting_balance"] = account_size
         state["usd_current_balance"] = account_size
@@ -635,42 +644,60 @@ class SimulatorService:
         self,
         date_str: str,
         day_pnl: float,
-        trades_count: int
+        trades_count: int = 1,
+        client_prop_firm: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Processes end of simulated day, updates EOD trailing floor, history, and checks rules."""
         state = self.load_game_state()
-        pf = state.get("prop_firm", self.get_default_prop_firm_state())
+        if client_prop_firm and isinstance(client_prop_firm, dict) and client_prop_firm.get("account_size"):
+            pf = client_prop_firm
+        else:
+            pf = state.get("prop_firm", self.get_default_prop_firm_state())
 
-        equity = round(pf["current_equity"] + day_pnl, 2)
+        account_size = float(pf.get("account_size", 50000.0))
+        max_dd_amount = float(pf.get("max_drawdown_amount", round(account_size * (pf.get("max_drawdown_pct", 5.0) / 100.0), 2)))
+
+        # If client passes closing equity, use it; otherwise compute from previous equity + day_pnl
+        if client_prop_firm and "current_equity" in client_prop_firm and client_prop_firm["current_equity"] != pf.get("day_start_equity"):
+            equity = round(float(client_prop_firm["current_equity"]), 2)
+        else:
+            prev_eq = float(pf.get("current_equity", account_size))
+            equity = round(prev_eq + day_pnl, 2)
+
         pf["current_equity"] = equity
         state["usd_current_balance"] = equity
         if state.get("market") == "US":
             state["current_balance"] = equity
 
-        pf["total_pnl"] = round(equity - pf["account_size"], 2)
-        if trades_count > 0:
-            pf["days_traded"] += 1
+        pf["total_pnl"] = round(equity - account_size, 2)
+        if trades_count > 0 or day_pnl != 0.0:
+            pf["days_traded"] = pf.get("days_traded", 0) + 1
             pf["trading_days_count"] = pf["days_traded"]
 
-        # Update High-Water Mark and Trailing Floor
-        if pf["drawdown_type"] == "eod_trailing":
-            if equity > pf["high_water_mark"]:
-                pf["high_water_mark"] = equity
-                raw_floor = round(pf["high_water_mark"] - pf["max_drawdown_amount"], 2)
-                # Standard prop firm lock: once floor reaches initial balance, lock it and do not trail higher
-                pf["drawdown_floor"] = min(pf["account_size"], raw_floor)
+        # Update High-Water Mark
+        hwm = max(float(pf.get("high_water_mark", account_size)), equity)
+        pf["high_water_mark"] = hwm
+
+        # Update Trailing Floor
+        if pf.get("drawdown_type") == "eod_trailing":
+            raw_floor = round(hwm - max_dd_amount, 2)
+            cur_floor = float(pf.get("drawdown_floor", account_size - max_dd_amount))
+            ratcheted_floor = max(cur_floor, raw_floor)
+            # Standard prop firm lock: once floor reaches initial balance, lock it and do not trail higher
+            pf["drawdown_floor"] = min(account_size, ratcheted_floor)
         else:
             # Static floor stays fixed at account_size - max_drawdown_amount
-            pf["drawdown_floor"] = round(pf["account_size"] - pf["max_drawdown_amount"], 2)
+            pf["drawdown_floor"] = round(account_size - max_dd_amount, 2)
 
         # Check MDD Breach
         if equity <= pf["drawdown_floor"]:
             pf["status"] = "failed"
+            pf["phase"] = "failed"
             pf["failure_reason"] = f"Max Drawdown Breached: Equity (${equity:,.2f}) hit floor (${pf['drawdown_floor']:,.2f})"
 
         # Check Evaluation Target (if active and not breached)
-        if pf["phase"] == "evaluation" and pf["status"] == "active":
-            if pf["total_pnl"] >= pf["profit_target_amount"] and pf["days_traded"] >= pf["min_trading_days"]:
+        if pf.get("phase") == "evaluation" and pf.get("status") != "failed":
+            if pf["total_pnl"] >= pf.get("profit_target_amount", 3000.0) and pf.get("days_traded", 0) >= pf.get("min_trading_days", 2):
                 pf["status"] = "passed"
                 pf["pass_date"] = date_str
 
@@ -691,11 +718,16 @@ class SimulatorService:
         if tot_profit > 0 and profitable_days:
             max_day = max(profitable_days)
             pf["highest_day_pnl"] = max_day
+            pf["largest_day_profit"] = max_day
             pf["highest_day_pct"] = round((max_day / tot_profit) * 100, 1)
+            pf["largest_day_pct"] = pf["highest_day_pct"]
+            rule_pct = pf.get("consistency_rule_pct", 40.0)
+            pf["consistency_satisfied"] = (rule_pct == 0.0) or (pf["largest_day_pct"] <= rule_pct)
 
         # Reset day starting baseline for next day
         pf["day_start_equity"] = equity
         pf["daily_loss_locked"] = False
+        pf["day_dll_breached"] = False
 
         state["prop_firm"] = pf
         self.save_game_state(state)
