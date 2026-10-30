@@ -3977,8 +3977,8 @@
         const rawFloor = Math.round((hwm - maxDDAmount) * 100) / 100;
         const curFloor = parseFloat(this.propFirm.drawdown_floor) || (accountSize - maxDDAmount);
         const ratchetedFloor = Math.max(curFloor, rawFloor);
-        // Lock at starting balance once in profit
-        this.propFirm.drawdown_floor = Math.min(accountSize, ratchetedFloor);
+        // EOD trailing trails with MDD behind the high-water mark
+        this.propFirm.drawdown_floor = ratchetedFloor;
       } else {
         this.propFirm.drawdown_floor = Math.round((accountSize - maxDDAmount) * 100) / 100;
       }
@@ -4524,7 +4524,7 @@
           this.dom.btnPfDdEod.classList.add("active");
           this.dom.btnPfDdStatic.classList.remove("active");
           if (this.dom.pfDdTypeDesc) {
-            this.dom.pfDdTypeDesc.innerHTML = "<b>EOD Trailing:</b> Drawdown floor trails your High Water Mark at the end of each profitable day, and locks at starting balance once in profit.";
+            this.dom.pfDdTypeDesc.innerHTML = "<b>EOD Trailing:</b> Drawdown floor trails your High Water Mark with your Max Drawdown (MDD) at the end of each profitable trading day.";
           }
         });
       }

@@ -658,7 +658,7 @@ class SimulatorService:
         max_dd_amount = float(pf.get("max_drawdown_amount", round(account_size * (pf.get("max_drawdown_pct", 5.0) / 100.0), 2)))
 
         # If client passes closing equity, use it; otherwise compute from previous equity + day_pnl
-        if client_prop_firm and "current_equity" in client_prop_firm and client_prop_firm["current_equity"] != pf.get("day_start_equity"):
+        if client_prop_firm and isinstance(client_prop_firm, dict) and "current_equity" in client_prop_firm:
             equity = round(float(client_prop_firm["current_equity"]), 2)
         else:
             prev_eq = float(pf.get("current_equity", account_size))
@@ -683,8 +683,8 @@ class SimulatorService:
             raw_floor = round(hwm - max_dd_amount, 2)
             cur_floor = float(pf.get("drawdown_floor", account_size - max_dd_amount))
             ratcheted_floor = max(cur_floor, raw_floor)
-            # Standard prop firm lock: once floor reaches initial balance, lock it and do not trail higher
-            pf["drawdown_floor"] = min(account_size, ratcheted_floor)
+            # EOD trailing trails with MDD behind the high-water mark
+            pf["drawdown_floor"] = ratcheted_floor
         else:
             # Static floor stays fixed at account_size - max_drawdown_amount
             pf["drawdown_floor"] = round(account_size - max_dd_amount, 2)

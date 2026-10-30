@@ -450,7 +450,7 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(data["phase"], "evaluation")
         self.assertEqual(data["status"], "active")
 
-    def test_prop_firm_eod_trailing_and_lock_at_starting_balance(self):
+    def test_prop_firm_eod_trailing_with_mdd_across_days(self):
         # 1. Setup $50k EOD trailing challenge ($2.5k MDD)
         self.client.post("/api/game/propfirm/setup", json={
             "account_size": 50000.0,
@@ -462,7 +462,7 @@ class TestFastAPIRoutes(unittest.TestCase):
             "min_trading_days": 2
         })
 
-        # 2. Day 1: +$1,200 profit -> Equity $51,200 -> Trailing floor rises to $48,700
+        # 2. Day 1: +$1,200 profit -> Equity $51,200 -> Trailing floor rises to $48,700 ($51,200 - $2,500)
         d1 = self.client.post("/api/game/propfirm/eod", json={
             "day_pnl": 1200.0,
             "day_index": 1,
@@ -475,7 +475,7 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(pf1["drawdown_floor"], 48700.0)  # 51200 - 2500
         self.assertEqual(pf1["trading_days_count"], 1)
 
-        # 3. Day 2: +$1,500 profit -> Equity $52,700 -> Trailing floor locks at $50,000 (starting balance)
+        # 3. Day 2: +$1,500 profit -> Equity $52,700 -> Trailing floor trails with MDD ($2,500) to $50,200
         d2 = self.client.post("/api/game/propfirm/eod", json={
             "day_pnl": 1500.0,
             "day_index": 2,
@@ -485,10 +485,10 @@ class TestFastAPIRoutes(unittest.TestCase):
         pf2 = d2.json()["prop_firm"]
         self.assertEqual(pf2["current_equity"], 52700.0)
         self.assertEqual(pf2["high_water_mark"], 52700.0)
-        self.assertEqual(pf2["drawdown_floor"], 50000.0)  # Locked at starting capital once in profit!
+        self.assertEqual(pf2["drawdown_floor"], 50200.0)  # 52700 - 2500 = 50200
         self.assertEqual(pf2["trading_days_count"], 2)
 
-        # 4. Day 3: -$500 loss -> Equity drops to $52,200 -> Floor stays locked at $50,000
+        # 4. Day 3: -$500 loss -> Equity drops to $52,200 -> Floor stays ratcheted at $50,200
         d3 = self.client.post("/api/game/propfirm/eod", json={
             "day_pnl": -500.0,
             "day_index": 3,
@@ -498,7 +498,19 @@ class TestFastAPIRoutes(unittest.TestCase):
         pf3 = d3.json()["prop_firm"]
         self.assertEqual(pf3["current_equity"], 52200.0)
         self.assertEqual(pf3["high_water_mark"], 52700.0)
-        self.assertEqual(pf3["drawdown_floor"], 50000.0)
+        self.assertEqual(pf3["drawdown_floor"], 50200.0)
+
+        # 5. Day 4: +$2,000 profit -> Equity rises to $54,200 -> Trailing floor trails with MDD to $51,700 ($54,200 - $2,500)
+        d4 = self.client.post("/api/game/propfirm/eod", json={
+            "day_pnl": 2000.0,
+            "day_index": 4,
+            "date": "2026-10-04"
+        })
+        self.assertEqual(d4.status_code, 200)
+        pf4 = d4.json()["prop_firm"]
+        self.assertEqual(pf4["current_equity"], 54200.0)
+        self.assertEqual(pf4["high_water_mark"], 54200.0)
+        self.assertEqual(pf4["drawdown_floor"], 51700.0)  # 54200 - 2500 = 51700
 
     def test_prop_firm_pass_and_funded_activation(self):
         # Setup $50k account with $3,000 target and 2 min days
@@ -668,6 +680,22 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(pf2["daily_loss_limit_amount"], 2500.0)
         self.assertEqual(len(pf2["daily_history"]), 2)
         self.assertEqual(pf2["status"], "active")
+
+        # 4. End of Day 3: +$6,000 profit -> Equity $109,500 -> Floor trails with MDD to $105,500 (> $100k account size!)
+        pf2["current_equity"] = 109500.0
+        d3_res = self.client.post("/api/game/propfirm/eod", json={
+            "date": "2026-10-12",
+            "day_pnl": 6000.0,
+            "trades_count": 2,
+            "prop_firm": pf2
+        })
+        self.assertEqual(d3_res.status_code, 200)
+        pf3 = d3_res.json()["prop_firm"]
+        self.assertEqual(pf3["current_equity"], 109500.0)
+        self.assertEqual(pf3["high_water_mark"], 109500.0)
+        self.assertEqual(pf3["drawdown_floor"], 105500.0)  # 109500 - 4000 = 105500! Continues trailing with MDD!
+        self.assertEqual(pf3["total_pnl"], 9500.0)
+        self.assertEqual(pf3["trading_days_count"], 3)
 
 
 if __name__ == "__main__":
