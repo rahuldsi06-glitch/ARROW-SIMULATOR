@@ -168,8 +168,12 @@ class TestFastAPIRoutes(unittest.TestCase):
     def test_game_html_route(self):
         res = self.client.get("/game")
         self.assertEqual(res.status_code, 200)
-        self.assertIn("ARROW TRADE PRO", res.text)
-        self.assertIn("lightweight-charts", res.text)
+        self.assertIn("ARROW TRADE PRO 2.0", res.text)
+        self.assertIn("klinecharts.min.js", res.text)
+        self.assertIn("three.min.js", res.text)
+        self.assertIn("chart_engine_v2.js", res.text)
+        self.assertIn("htf-chart", res.text)
+        self.assertIn("toggle-lvl-pdh", res.text)
 
     def test_game_config_route(self):
         res = self.client.get("/api/game/config")
@@ -824,6 +828,26 @@ class TestFastAPIRoutes(unittest.TestCase):
         })
         self.assertEqual(pay3.status_code, 400)
         self.assertIn("exceeds available funded profit", pay3.json()["detail"])
+
+    def test_session_includes_prior_context_and_liquidity_levels(self):
+        for payload in [
+            {"mode": "index", "market": "IN", "symbol": "NIFTY"},
+            {"mode": "us_futures", "market": "US", "symbol": "MES"},
+        ]:
+            res = self.client.post("/api/game/session", json=payload)
+            self.assertEqual(res.status_code, 200)
+            sess = res.json()["session"]
+            self.assertIn("prior_candles", sess)
+            self.assertIn("session_levels", sess)
+            self.assertGreaterEqual(len(sess["prior_candles"]), 150)
+            self.assertLess(sess["prior_candles"][-1]["time"], sess["candles"][0]["time"])
+            lvls = sess["session_levels"]
+            for key in ["pdh", "pdl", "asia_high", "asia_low", "london_high", "london_low", "ny_high", "ny_low"]:
+                self.assertIn(key, lvls)
+                self.assertIsInstance(lvls[key], float)
+            self.assertGreaterEqual(lvls["pdh"], lvls["pdl"])
+            self.assertGreaterEqual(lvls["asia_high"], lvls["asia_low"])
+            self.assertGreaterEqual(lvls["london_high"], lvls["london_low"])
 
 
 if __name__ == "__main__":

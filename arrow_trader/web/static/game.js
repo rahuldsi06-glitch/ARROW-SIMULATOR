@@ -308,7 +308,16 @@
       // Active Position
       this.activePosition = null;
 
-      // Charting
+      // Charting (Arrow Trade Pro 2.0: KLineChart v9 + Three.js)
+      this.chartEngine = window.ArrowChartEngineV2 ? new window.ArrowChartEngineV2() : null;
+      this.threeEngine = window.ThreeGamificationEngine ? new window.ThreeGamificationEngine() : null;
+      this.sessionLevelsEnabled = {
+        pdh: true,
+        pdl: true,
+        asia: false,
+        london: false,
+        ny: false,
+      };
       this.chart = null;
       this.candleSeries = null;
       this.volumeSeries = null;
@@ -418,6 +427,21 @@
       this.dom.barVol = document.getElementById("bar-vol");
       this.dom.chartWrapper = document.getElementById("chart-wrapper");
       this.dom.tvChart = document.getElementById("tv-chart");
+      this.dom.htfChart = document.getElementById("htf-chart");
+      this.dom.htfPane = document.getElementById("htf-pane");
+      this.dom.htfSymbolLabel = document.getElementById("htf-symbol-label");
+      this.dom.btnToggleHtf = document.getElementById("btn-toggle-htf");
+      this.dom.chartStyleSelect = document.getElementById("chart-style-select");
+      this.dom.mainTfGroup = document.getElementById("main-tf-group");
+      this.dom.htfTfGroup = document.getElementById("htf-tf-group");
+      this.dom.sessionLevelsGroup = document.getElementById("session-levels-group");
+      this.dom.tvDrawingRail = document.getElementById("tv-drawing-rail");
+      this.dom.toggleLvlPdh = document.getElementById("toggle-lvl-pdh");
+      this.dom.toggleLvlPdl = document.getElementById("toggle-lvl-pdl");
+      this.dom.toggleLvlAsia = document.getElementById("toggle-lvl-asia");
+      this.dom.toggleLvlLondon = document.getElementById("toggle-lvl-london");
+      this.dom.toggleLvlNy = document.getElementById("toggle-lvl-ny");
+      this.dom.toggleLvlAll = document.getElementById("toggle-lvl-all");
       this.dom.tradeChartOverlay = document.getElementById("trade-chart-overlay");
 
       // Chart Drawing & Interactive Placing Tools
@@ -857,224 +881,29 @@
     }
 
     initChart() {
-      if (!window.LightweightCharts) {
-        console.error("LightweightCharts library not loaded");
+      if (this.threeEngine) {
+        this.threeEngine.init();
+      }
+
+      if (!this.chartEngine) {
+        console.error("ArrowChartEngineV2 not loaded");
         return;
       }
 
-      this.chart = LightweightCharts.createChart(this.dom.tvChart, {
-        layout: {
-          background: { color: "#080b10" },
-          textColor: "#94a3b8",
-          fontFamily: "'JetBrains Mono', 'Inter', sans-serif",
-          fontSize: 11,
-        },
-        grid: {
-          vertLines: { color: "rgba(255, 255, 255, 0.04)" },
-          horzLines: { color: "rgba(255, 255, 255, 0.04)" },
-        },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Normal,
-          vertLine: { color: "#38bdf8", width: 1, style: 3 },
-          horzLine: { color: "#38bdf8", width: 1, style: 3 },
-        },
-        timeScale: {
-          borderColor: "rgba(255, 255, 255, 0.08)",
-          timeVisible: true,
-          secondsVisible: false,
-          shiftVisibleRangeOnNewBar: true,
-          rightOffset: 12,
-          barSpacing: 10,
-          minBarSpacing: 3,
-        },
-        rightPriceScale: {
-          borderColor: "rgba(255, 255, 255, 0.08)",
-          scaleMargins: { top: 0.12, bottom: 0.28 },
-          autoScale: true,
-        },
-        handleScale: {
-          axisPressedMouseMove: { time: true, price: true },
-          axisDoubleClickReset: { time: true, price: true },
-          mouseWheel: true,
-          pinch: true,
-        },
-        handleScroll: {
-          mouseWheel: true,
-          pressedMouseMove: true,
-          horzTouchDrag: true,
-          vertTouchDrag: true,
-        },
-      });
-
-      // Candlestick Series
-      this.candleSeries = this.chart.addCandlestickSeries({
-        upColor: "#10b981",
-        downColor: "#f43f5e",
-        borderUpColor: "#10b981",
-        borderDownColor: "#f43f5e",
-        wickUpColor: "#10b981",
-        wickDownColor: "#f43f5e",
-        priceFormat: {
-          type: "price",
-          precision: 2,
-          minMove: 0.05,
-        },
-      });
-
-      // Volume Series
-      this.volumeSeries = this.chart.addHistogramSeries({
-        color: "rgba(56, 189, 248, 0.35)",
-        priceFormat: { type: "volume" },
-        priceScaleId: "", // overlay scale
-        scaleMargins: { top: 0.8, bottom: 0 },
-      });
-
-      // Overlays
-      this.ema9Series = this.chart.addLineSeries({
-        color: "#38bdf8",
-        lineWidth: 1.5,
-        title: "EMA 9",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      this.ema21Series = this.chart.addLineSeries({
-        color: "#f59e0b",
-        lineWidth: 1.5,
-        title: "EMA 21",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      this.ema50Series = this.chart.addLineSeries({
-        color: "#a855f7",
-        lineWidth: 1.5,
-        title: "EMA 50",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      this.ma200Series = this.chart.addLineSeries({
-        color: "#f97316",
-        lineWidth: 2,
-        title: "200 MA",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      this.vwapSeries = this.chart.addLineSeries({
-        color: "#8b5cf6",
-        lineWidth: 1.5,
-        title: "VWAP",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      // Supertrend (Bull: Emerald Green, Bear: Crimson Red)
-      this.supertrendUpSeries = this.chart.addLineSeries({
-        color: "#10b981",
-        lineWidth: 2,
-        title: "Supertrend (Bull)",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      this.supertrendDownSeries = this.chart.addLineSeries({
-        color: "#f43f5e",
-        lineWidth: 2,
-        title: "Supertrend (Bear)",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      // Auto resize handling (Window + ResizeObserver)
-      const updateChartDimensions = () => {
-        if (this.chart && this.dom.chartWrapper) {
-          const w = this.dom.chartWrapper.clientWidth;
-          const h = this.dom.chartWrapper.clientHeight;
-          if (w > 50 && h > 50) {
-            this.chart.applyOptions({ width: w, height: h });
+      this.chartEngine.init(this.dom.tvChart, this.dom.htfChart, {
+        onPricePick: (clickedPrice) => {
+          if (!clickedPrice || isNaN(clickedPrice) || clickedPrice <= 0) return;
+          if (this.chartPickMode === "SL") {
+            this.applyChartPickedSL(clickedPrice);
+          } else if (this.chartPickMode === "TARGET") {
+            this.applyChartPickedTarget(clickedPrice);
           }
-        }
-      };
-
-      window.addEventListener("resize", updateChartDimensions);
-      if (window.ResizeObserver && this.dom.chartWrapper) {
-        const ro = new ResizeObserver(() => updateChartDimensions());
-        ro.observe(this.dom.chartWrapper);
-      }
-      setTimeout(updateChartDimensions, 100);
-
-      // Mouse & Touch Drag Support for interactive on-screen Fibonacci Drawing
-      const getChartPointPrice = (e) => {
-        if (!this.candleSeries || !this.dom.tvChart) return null;
-        const rect = this.dom.tvChart.getBoundingClientRect();
-        const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
-        if (typeof clientY !== "number") return null;
-        const y = clientY - rect.top;
-        if (y < 0 || y > rect.height) return null;
-        const p = this.candleSeries.coordinateToPrice(y);
-        return (p != null && !isNaN(p) && p > 0) ? p : null;
-      };
-
-      const onPointerDown = (e) => {
-        if (!this.fibMode) return;
-        const price = getChartPointPrice(e);
-        if (!price) return;
-        this.isDraggingFib = true;
-        this.fibDragStartPrice = price;
-        this.fibAnchor1 = price;
-        this.fibStep = 2;
-        // Temporarily disable chart pan so mouse drag draws Fibonacci cleanly
-        this.chart.applyOptions({
-          handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false }
-        });
-        this.drawFibRetracement(this.fibAnchor1, price);
-        this.dom.chartActionText.innerText = `📐 Dragging Fib from ₹${this.fibAnchor1.toFixed(1)}... Release to place.`;
-      };
-
-      const onPointerMove = (e) => {
-        if (!this.fibMode) return;
-        if (this.isDraggingFib || this.fibStep === 2) {
-          const price = getChartPointPrice(e);
-          if (price && this.fibAnchor1) {
-            this.drawFibRetracement(this.fibAnchor1, price);
-            const status = this.isDraggingFib ? "Release to place" : "Click to place";
-            this.dom.chartActionText.innerText = `📐 Fib: ₹${this.fibAnchor1.toFixed(1)} → ₹${price.toFixed(1)} (${status})`;
-          }
-        }
-      };
-
-      const onPointerUp = (e) => {
-        if (!this.fibMode) return;
-        if (this.isDraggingFib) {
-          this.chart.applyOptions({
-            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }
-          });
-          this.isDraggingFib = false;
-          const price = getChartPointPrice(e) || this.lastDrawnFibP2;
-          if (price && this.fibAnchor1 && Math.abs(price - this.fibAnchor1) > 0.5) {
-            this.lastFibPoints = { p1: this.fibAnchor1, p2: price };
-            this.drawFibRetracement(this.fibAnchor1, price);
-            this.cancelChartAction();
-            this.audio.playClick();
-          }
-        }
-      };
-
-      if (this.dom.tvChart) {
-        this.dom.tvChart.addEventListener("mousedown", onPointerDown);
-        this.dom.tvChart.addEventListener("touchstart", onPointerDown, { passive: true });
-      }
-      window.addEventListener("mousemove", onPointerMove);
-      window.addEventListener("mouseup", onPointerUp);
-      window.addEventListener("touchmove", onPointerMove, { passive: true });
-      window.addEventListener("touchend", onPointerUp, { passive: true });
-
-      // Interactive Chart Click Handler for Fibonacci & SL/Target placement
-      this.chart.subscribeClick((param) => {
-        this.handleChartClick(param);
+        },
       });
+
+      // Default PDH & PDL active on load
+      if (this.dom.toggleLvlPdh) this.dom.toggleLvlPdh.classList.add("active");
+      if (this.dom.toggleLvlPdl) this.dom.toggleLvlPdl.classList.add("active");
     }
 
     // ========================================================================
@@ -1113,16 +942,16 @@
       this.updateHUD();
       this.saveState();
 
-      // Clear all chart series immediately to eliminate old price ranges
-      if (this.candleSeries) this.candleSeries.setData([]);
-      if (this.volumeSeries) this.volumeSeries.setData([]);
-      if (this.ema9Series) this.ema9Series.setData([]);
-      if (this.ema21Series) this.ema21Series.setData([]);
-      if (this.ema50Series) this.ema50Series.setData([]);
-      if (this.ma200Series) this.ma200Series.setData([]);
-      if (this.vwapSeries) this.vwapSeries.setData([]);
-      if (this.supertrendUpSeries) this.supertrendUpSeries.setData([]);
-      if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
+      // Clear all chart series & overlays immediately to eliminate old price ranges
+      if (this.chartEngine) {
+        this.chartEngine.updateData([], [], 2);
+        this.chartEngine.clearTradeLines();
+        this.chartEngine.clearPreviewLines();
+        this.chartEngine.clearUserDrawings();
+      }
+      if (this.dom.htfSymbolLabel) {
+        this.dom.htfSymbolLabel.innerText = symbol || this.currentSymbol || "NIFTY";
+      }
 
       const isUS = this.currentMarket === "US";
       const sym = symbol || this.currentSymbol || (isUS ? "MES" : "NIFTY");
@@ -1334,57 +1163,9 @@
     }
 
     resetChartViewport(forceFullDay = true) {
-      if (!this.chart || !this.candleSeries) return;
-
-      const apply = () => {
-        try {
-          // 1. Force Price Scale to autoScale mode so candles fit vertically
-          this.chart.priceScale("right").applyOptions({
-            autoScale: true,
-            scaleMargins: { top: 0.12, bottom: 0.28 },
-          });
-
-          if (this.candleSeries.priceScale) {
-            this.candleSeries.priceScale().applyOptions({
-              autoScale: true,
-            });
-          }
-
-          // 2. Set Price Format precision based on instrument
-          const tickSize = this.session?.tick_size || 0.05;
-          this.candleSeries.applyOptions({
-            priceFormat: {
-              type: "price",
-              precision: 2,
-              minMove: tickSize,
-            },
-          });
-
-          // 3. Reset Time Scale internal zoom & pan
-          this.chart.timeScale().resetTimeScale();
-
-          // 4. Set optimal Visible Logical Range
-          const totalBars = this.session?.total_bars || 75;
-          if (forceFullDay || this.currentBarIndex <= 5) {
-            this.chart.timeScale().setVisibleLogicalRange({
-              from: -3,
-              to: Math.min(85, Math.max(35, totalBars + 5)),
-            });
-          } else {
-            const fromBar = Math.max(-3, this.currentBarIndex - 45);
-            const toBar = this.currentBarIndex + 15;
-            this.chart.timeScale().setVisibleLogicalRange({
-              from: fromBar,
-              to: toBar,
-            });
-          }
-        } catch (err) {
-          console.warn("Chart viewport reset warning:", err);
-        }
-      };
-
-      apply();
-      requestAnimationFrame(apply);
+      if (this.chartEngine) {
+        this.chartEngine.fitContent();
+      }
     }
 
     resetReplayToStart() {
@@ -1409,89 +1190,30 @@
       const visibleBars = this.session.candles.slice(0, this.currentBarIndex + 1);
       const currentCandle = visibleBars[visibleBars.length - 1];
 
-      // Format for TradingView
-      const formattedBars = visibleBars.map(c => ({
-        time: c.time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-
-      const formattedVols = visibleBars.map(c => ({
-        time: c.time,
-        value: c.volume || 100,
-        color: c.close >= c.open ? "rgba(16, 185, 129, 0.35)" : "rgba(244, 63, 94, 0.35)",
-      }));
-
-      this.candleSeries.setData(formattedBars);
-      this.volumeSeries.setData(formattedVols);
-
-      // Overlays: only set data for active indicators, explicitly clear inactive ones
-      const endIndex = this.currentBarIndex + 1;
-
-      if (this.dom.toggleEma9 && this.dom.toggleEma9.classList.contains("active")) {
-        this.ema9Series.setData(this.indicatorData.ema9.slice(0, endIndex));
-      } else if (this.ema9Series) {
-        this.ema9Series.setData([]);
+      // Update dynamic NY session high/low based on revealed today bars
+      if (this.session.session_levels && visibleBars.length) {
+        let nyH = -Infinity;
+        let nyL = Infinity;
+        for (const b of visibleBars) {
+          if (b.high > nyH) nyH = b.high;
+          if (b.low < nyL) nyL = b.low;
+        }
+        this.session.session_levels.ny_high = Math.round(nyH * 100) / 100;
+        this.session.session_levels.ny_low = Math.round(nyL * 100) / 100;
       }
 
-      if (this.dom.toggleEma21 && this.dom.toggleEma21.classList.contains("active")) {
-        this.ema21Series.setData(this.indicatorData.ema21.slice(0, endIndex));
-      } else if (this.ema21Series) {
-        this.ema21Series.setData([]);
+      if (this.chartEngine) {
+        const prior = this.session.prior_candles || [];
+        this.chartEngine.updateData(prior, visibleBars, 2);
+        this.chartEngine.syncSessionLevels(this.session.session_levels, this.sessionLevelsEnabled);
+        if (this.activePosition) {
+          this.drawPositionChartLines();
+        }
       }
 
-      if (this.dom.toggleEma50 && this.dom.toggleEma50.classList.contains("active")) {
-        this.ema50Series.setData(this.indicatorData.ema50.slice(0, endIndex));
-      } else if (this.ema50Series) {
-        this.ema50Series.setData([]);
-      }
-
-      if (this.dom.toggleMa200 && this.dom.toggleMa200.classList.contains("active")) {
-        this.ma200Series.setData(this.indicatorData.ma200.slice(0, endIndex));
-      } else if (this.ma200Series) {
-        this.ma200Series.setData([]);
-      }
-
-      if (this.dom.toggleVwap && this.dom.toggleVwap.classList.contains("active")) {
-        this.vwapSeries.setData(this.indicatorData.vwap.slice(0, endIndex));
-      } else if (this.vwapSeries) {
-        this.vwapSeries.setData([]);
-      }
-
-      if (this.dom.toggleSupertrend && this.dom.toggleSupertrend.classList.contains("active")) {
-        this.supertrendUpSeries.setData(this.indicatorData.supertrendUp.slice(0, endIndex));
-        this.supertrendDownSeries.setData(this.indicatorData.supertrendDown.slice(0, endIndex));
-      } else {
-        if (this.supertrendUpSeries) this.supertrendUpSeries.setData([]);
-        if (this.supertrendDownSeries) this.supertrendDownSeries.setData([]);
-      }
-
-      this.candleSeries.setMarkers(this.chartMarkers);
-
-      // Auto-tracking: keep current candle visible on chart as replay advances or jumps
-      if (this.currentBarIndex > 0) {
-        try {
-          const logicalRange = this.chart.timeScale().getVisibleLogicalRange();
-          if (logicalRange) {
-            const span = Math.max(25, logicalRange.to - logicalRange.from);
-            if (this.currentBarIndex >= logicalRange.to - 2) {
-              this.chart.timeScale().setVisibleLogicalRange({
-                from: this.currentBarIndex - span + 8,
-                to: this.currentBarIndex + 8,
-              });
-            } else if (this.currentBarIndex < logicalRange.from) {
-              this.chart.timeScale().setVisibleLogicalRange({
-                from: Math.max(-3, this.currentBarIndex - 3),
-                to: Math.max(-3, this.currentBarIndex - 3) + span,
-              });
-            }
-          }
-        } catch (e) {}
-      } else {
-        // At opening bar (Bar 0), ensure chart view is auto-fitted
-        this.resetChartViewport(true);
+      if (this.threeEngine) {
+        const livePnl = this.dayPnL + (this.activePosition ? (this.activePosition.pnl || 0) : 0);
+        this.threeEngine.setMoodByPnl(livePnl);
       }
 
       // Update Tickers & OHLC
@@ -2137,7 +1859,7 @@
         shape: isLong ? "arrowUp" : "arrowDown",
         text: `${isLong ? "BUY" : "SHORT"} ${lots} ${this.session.symbol} @ ${this.formatCurrency(spot)}`,
       });
-      this.candleSeries.setMarkers(this.chartMarkers);
+      if (this.candleSeries) this.candleSeries.setMarkers(this.chartMarkers);
 
       this.renderActivePositionDeck();
     }
@@ -2228,7 +1950,7 @@
         shape: this.selectedDirection === "CE" ? "arrowUp" : "arrowDown",
         text: `BUY ${this.selectedStrike} ${this.selectedDirection} @ ${this.formatCurrency(opt.price)}`,
       });
-      this.candleSeries.setMarkers(this.chartMarkers);
+      if (this.candleSeries) this.candleSeries.setMarkers(this.chartMarkers);
 
       // Render Active Position Deck
       this.renderActivePositionDeck();
@@ -2236,89 +1958,37 @@
 
     drawPositionChartLines() {
       this.clearPriceLines();
-      if (!this.activePosition) return;
+      if (!this.activePosition || !this.chartEngine) return;
 
       const pos = this.activePosition;
-
-      // FUTURES POSITION CHART LINES (Direct Spot Pricing)
       if (pos.instrumentType === "futures") {
-        const entryLine = this.candleSeries.createPriceLine({
-          price: pos.entryPrice,
-          color: "#38bdf8",
-          lineWidth: 1.5,
-          lineStyle: 0, // Solid
-          axisLabelVisible: true,
-          title: `ENTRY: ${pos.symbol} FUT ${pos.direction} (₹${pos.entryPrice.toFixed(1)})`,
-        });
-
-        const targetLine = this.candleSeries.createPriceLine({
-          price: pos.targetPrice,
-          color: "#10b981",
-          lineWidth: 1.5,
-          lineStyle: 2, // Dashed
-          axisLabelVisible: true,
-          title: `TARGET (₹${pos.targetPrice.toFixed(1)})`,
-        });
-
-        const slLine = this.candleSeries.createPriceLine({
-          price: pos.slPrice,
-          color: "#f43f5e",
-          lineWidth: 1.5,
-          lineStyle: 2, // Dashed
-          axisLabelVisible: true,
-          title: `STOP LOSS (₹${pos.slPrice.toFixed(1)})`,
-        });
-
-        this.activePriceLines = [entryLine, targetLine, slLine];
+        this.chartEngine.setTradeLines(
+          pos.entryPrice,
+          pos.targetPrice,
+          pos.slPrice,
+          `${pos.symbol} ${pos.direction}`
+        );
         return;
       }
 
-      // OPTIONS POSITION CHART LINES (Spot Translation)
-      const spot = this.activePosition.entrySpot;
-      const isCall = this.activePosition.direction === "CE";
-      const delta = Math.abs(0.5); // delta translation to underlying spot points
-      const targetMovePts = ((this.activePosition.targetPrice - this.activePosition.entryPrice) / delta);
-      const slMovePts = ((this.activePosition.entryPrice - this.activePosition.slPrice) / delta);
-
+      const spot = pos.entrySpot;
+      const isCall = pos.direction === "CE";
+      const delta = 0.5;
+      const targetMovePts = (pos.targetPrice - pos.entryPrice) / delta;
+      const slMovePts = (pos.entryPrice - pos.slPrice) / delta;
       const targetSpot = isCall ? (spot + targetMovePts) : (spot - targetMovePts);
       const slSpot = isCall ? (spot - slMovePts) : (spot + slMovePts);
 
-      const entryLine = this.candleSeries.createPriceLine({
-        price: spot,
-        color: "#38bdf8",
-        lineWidth: 1.5,
-        lineStyle: 0, // Solid
-        axisLabelVisible: true,
-        title: `ENTRY: ${this.activePosition.strike} ${this.activePosition.direction}`,
-      });
-
-      const targetLine = this.candleSeries.createPriceLine({
-        price: targetSpot,
-        color: "#10b981",
-        lineWidth: 1.5,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: `TARGET (+${this.activePosition.initialTargetPct}%)`,
-      });
-
-      const slLine = this.candleSeries.createPriceLine({
-        price: slSpot,
-        color: "#f43f5e",
-        lineWidth: 1.5,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: `STOP LOSS (-${this.activePosition.initialSLPct}%)`,
-      });
-
-      this.activePriceLines = [entryLine, targetLine, slLine];
+      this.chartEngine.setTradeLines(
+        spot,
+        targetSpot,
+        slSpot,
+        `ENTRY ${pos.strike} ${pos.direction}`
+      );
     }
 
     clearPriceLines() {
-      if (this.activePriceLines && this.candleSeries) {
-        this.activePriceLines.forEach(l => {
-          try { this.candleSeries.removePriceLine(l); } catch (e) {}
-        });
-      }
+      if (this.chartEngine) this.chartEngine.clearTradeLines();
       this.activePriceLines = [];
     }
 
@@ -2326,36 +1996,12 @@
     // CHART PREVIEW LINES (PLANNING SL / TARGET)
     // ========================================================================
     updatePreviewLines(targetSpot, slSpot) {
-      this.clearPreviewLines();
-      if (this.activePosition || !this.candleSeries) return;
-
-      const tLine = this.candleSeries.createPriceLine({
-        price: targetSpot,
-        color: "rgba(16, 185, 129, 0.75)",
-        lineWidth: 1,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: `PLAN TARGET (₹${targetSpot.toFixed(1)})`
-      });
-
-      const slLine = this.candleSeries.createPriceLine({
-        price: slSpot,
-        color: "rgba(244, 63, 94, 0.75)",
-        lineWidth: 1,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: `PLAN SL (₹${slSpot.toFixed(1)})`
-      });
-
-      this.previewLines = [tLine, slLine];
+      if (this.activePosition || !this.chartEngine) return;
+      this.chartEngine.setPreviewLines(targetSpot, slSpot);
     }
 
     clearPreviewLines() {
-      if (this.previewLines && this.candleSeries) {
-        this.previewLines.forEach(l => {
-          try { this.candleSeries.removePriceLine(l); } catch (e) {}
-        });
-      }
+      if (this.chartEngine) this.chartEngine.clearPreviewLines();
       this.previewLines = [];
     }
 
@@ -2556,18 +2202,17 @@
 
     startFibDrawing() {
       this.cancelChartAction();
-      this.fibMode = true;
-      this.fibStep = 1;
-      this.fibAnchor1 = null;
-      this.isDraggingFib = false;
+      if (this.chartEngine) {
+        this.chartEngine.startDrawingTool("fibonacciLine");
+      }
       this.dom.btnDrawFib.classList.add("active");
-      this.dom.chartActionText.innerText = "📐 Fibonacci: Drag across chart, or click 2 points to draw...";
+      this.dom.chartActionText.innerText = "📐 Fibonacci Tool Active: Click 2 points on the chart to draw & drag handles freely...";
       this.dom.chartActionBanner.classList.remove("hidden");
       this.audio.playClick();
     }
 
     autoSwingFib() {
-      if (!this.session || !this.session.candles.length) return;
+      if (!this.session || !this.session.candles.length || !this.chartEngine) return;
       const visible = this.session.candles.slice(0, this.currentBarIndex + 1);
       let minLow = Infinity;
       let maxHigh = -Infinity;
@@ -2575,62 +2220,24 @@
         if (c.low < minLow) minLow = c.low;
         if (c.high > maxHigh) maxHigh = c.high;
       });
-
       if (!isFinite(minLow) || !isFinite(maxHigh) || minLow === maxHigh) {
         minLow = this.session.candles[0].low;
         maxHigh = this.session.candles[0].high;
       }
-
-      const dayOpen = visible[0].open;
-      const curClose = visible[visible.length - 1].close;
-      // In uptrend, anchor Low to High; in downtrend, anchor High to Low
-      if (curClose >= dayOpen) {
-        this.lastFibPoints = { p1: minLow, p2: maxHigh };
-        this.drawFibRetracement(minLow, maxHigh);
-      } else {
-        this.lastFibPoints = { p1: maxHigh, p2: minLow };
-        this.drawFibRetracement(maxHigh, minLow);
-      }
+      const startTs = visible[0].time;
+      const endTs = visible[visible.length - 1].time;
+      this.chartEngine.drawAutoFib(minLow, maxHigh, startTs, endTs);
       this.audio.playClick();
     }
 
     drawFibRetracement(p1, p2) {
-      this.clearFib();
-      this.lastFibPoints = { p1, p2 };
-      this.lastDrawnFibP2 = p2;
-      const diff = p2 - p1;
-
-      const levels = (this.fibSettings && Array.isArray(this.fibSettings.levels))
-        ? this.fibSettings.levels
-        : this.getDefaultFibSettings().levels;
-      const showPrices = this.fibSettings ? this.fibSettings.showPrices !== false : true;
-      const showLabels = this.fibSettings ? this.fibSettings.showLabels !== false : true;
-
-      levels.forEach(lvl => {
-        if (lvl.enabled === false) return;
-        const lvlPrice = p1 + diff * lvl.ratio;
-        const titleParts = ["Fib"];
-        if (showLabels && lvl.label) titleParts.push(lvl.label);
-        if (showPrices) titleParts.push(`(₹${lvlPrice.toFixed(1)})`);
-
-        const line = this.candleSeries.createPriceLine({
-          price: lvlPrice,
-          color: lvl.color || "#38bdf8",
-          lineWidth: lvl.width || 1,
-          lineStyle: (typeof lvl.style === "number") ? lvl.style : 2,
-          axisLabelVisible: true,
-          title: titleParts.join(" ")
-        });
-        this.fibLines.push(line);
-      });
+      if (!this.chartEngine || !this.session || !this.session.candles.length) return;
+      const visible = this.session.candles.slice(0, this.currentBarIndex + 1);
+      this.chartEngine.drawAutoFib(Math.min(p1, p2), Math.max(p1, p2), visible[0].time, visible[visible.length - 1].time);
     }
 
     clearFib() {
-      if (this.fibLines && this.candleSeries) {
-        this.fibLines.forEach(l => {
-          try { this.candleSeries.removePriceLine(l); } catch (e) {}
-        });
-      }
+      if (this.chartEngine) this.chartEngine.clearFibs();
       this.fibLines = [];
     }
 
@@ -2933,13 +2540,15 @@
       const xpGain = finalPnl > 0 ? Math.max(50, Math.round(finalPnl / 100)) : 10;
       this.xp += xpGain;
 
-      // Sound Effect
+      // Sound Effect & 3D Celebration
       if (reason === "TARGET_HIT") {
         this.audio.playTargetWin();
+        if (this.threeEngine) this.threeEngine.triggerCelebration("win");
       } else if (reason === "STOP_LOSS_HIT") {
         this.audio.playStopLossHit();
       } else {
         this.audio.playClick();
+        if (finalPnl > 0 && this.threeEngine) this.threeEngine.triggerCelebration("win");
       }
 
       // Add Exit Marker on Chart
@@ -2951,7 +2560,7 @@
         shape: "circle",
         text: `${reason === "TARGET_HIT" ? "🎯 TARGET" : (reason === "STOP_LOSS_HIT" ? "🛑 SL" : "🚪 EXIT")} @ ${this.formatCurrency(actualExit)} (${finalPnl >= 0 ? "+" : ""}${this.formatCurrency(finalPnl)})`,
       });
-      this.candleSeries.setMarkers(this.chartMarkers);
+      if (this.candleSeries) this.candleSeries.setMarkers(this.chartMarkers);
 
       // Record in journal
       const tradeRecord = {
@@ -3122,6 +2731,11 @@
       this.dom.hudRankBadge.innerText = this.rank;
       const xpProgress = Math.min(100, Math.round((this.xp % 1000) / 10));
       this.dom.hudXpBar.style.width = `${xpProgress}%`;
+
+      if (this.threeEngine) {
+        this.threeEngine.setRankTier(this.rank);
+        this.threeEngine.setMoodByPnl(liveDayPnL);
+      }
 
       // Update Prop Firm HUD in US market mode
       if (this.currentMarket === "US") {
@@ -3299,10 +2913,122 @@
       ].filter(Boolean).forEach(btn => {
         btn.addEventListener("click", () => {
           btn.classList.toggle("active");
-          this.renderCurrentChartState();
+          if (this.chartEngine) {
+            this.chartEngine.syncIndicators({
+              ema9: this.dom.toggleEma9?.classList.contains("active"),
+              ema21: this.dom.toggleEma21?.classList.contains("active"),
+              ema50: this.dom.toggleEma50?.classList.contains("active"),
+              ma200: this.dom.toggleMa200?.classList.contains("active"),
+              vwap: this.dom.toggleVwap?.classList.contains("active"),
+              supertrend: this.dom.toggleSupertrend?.classList.contains("active"),
+            });
+          }
           this.audio.playClick();
         });
       });
+
+      // Pro 2.0: Main Chart Timeframe Switcher (5m, 15m, 30m, 1H)
+      if (this.dom.mainTfGroup) {
+        this.dom.mainTfGroup.querySelectorAll(".tf-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.dom.mainTfGroup.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const tf = btn.getAttribute("data-tf");
+            if (this.chartEngine && tf) this.chartEngine.setMainTimeframe(tf);
+            this.audio.playClick();
+          });
+        });
+      }
+
+      // Pro 2.0: Right-Side HTF Chart Timeframe Switcher (15m, 30m, 1H, 4H)
+      if (this.dom.htfTfGroup) {
+        this.dom.htfTfGroup.querySelectorAll(".tf-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.dom.htfTfGroup.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const tf = btn.getAttribute("data-tf");
+            if (this.chartEngine && tf) this.chartEngine.setHtfTimeframe(tf);
+            this.audio.playClick();
+          });
+        });
+      }
+
+      // Pro 2.0: HTF Split Toggle
+      if (this.dom.btnToggleHtf && this.dom.htfPane) {
+        this.dom.btnToggleHtf.addEventListener("click", () => {
+          const nowActive = this.dom.btnToggleHtf.classList.toggle("active");
+          this.dom.htfPane.classList.toggle("hidden", !nowActive);
+          if (this.chartEngine) this.chartEngine.setHtfVisible(nowActive);
+          this.audio.playClick();
+        });
+      }
+
+      // Pro 2.0: Candlestick Style Selector
+      if (this.dom.chartStyleSelect) {
+        this.dom.chartStyleSelect.addEventListener("change", (e) => {
+          if (this.chartEngine) this.chartEngine.setChartStyle(e.target.value);
+          this.audio.playClick();
+        });
+      }
+
+      // Pro 2.0: Session Liquidity Levels (PDH, PDL, Asia H/L, London H/L, NY H/L)
+      if (this.dom.sessionLevelsGroup) {
+        const levelBtns = [
+          { el: this.dom.toggleLvlPdh, key: "pdh" },
+          { el: this.dom.toggleLvlPdl, key: "pdl" },
+          { el: this.dom.toggleLvlAsia, key: "asia" },
+          { el: this.dom.toggleLvlLondon, key: "london" },
+          { el: this.dom.toggleLvlNy, key: "ny" },
+        ];
+        levelBtns.forEach(({ el, key }) => {
+          if (!el) return;
+          el.addEventListener("click", () => {
+            const active = el.classList.toggle("active");
+            this.sessionLevelsEnabled[key] = active;
+            if (this.chartEngine && this.session) {
+              this.chartEngine.syncSessionLevels(this.session.session_levels, this.sessionLevelsEnabled);
+            }
+            this.audio.playClick();
+          });
+        });
+
+        if (this.dom.toggleLvlAll) {
+          this.dom.toggleLvlAll.addEventListener("click", () => {
+            const turnOn = !this.dom.toggleLvlAll.classList.contains("active");
+            this.dom.toggleLvlAll.classList.toggle("active", turnOn);
+            levelBtns.forEach(({ el, key }) => {
+              if (el) el.classList.toggle("active", turnOn);
+              this.sessionLevelsEnabled[key] = turnOn;
+            });
+            if (this.chartEngine && this.session) {
+              this.chartEngine.syncSessionLevels(this.session.session_levels, this.sessionLevelsEnabled);
+            }
+            this.audio.playClick();
+          });
+        }
+      }
+
+      // Pro 2.0: Left TradingView Drawing Rail
+      if (this.dom.tvDrawingRail) {
+        this.dom.tvDrawingRail.querySelectorAll(".rail-btn[data-tool]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.dom.tvDrawingRail.querySelectorAll(".rail-btn[data-tool]").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const tool = btn.getAttribute("data-tool");
+            if (tool && tool !== "cursor" && this.chartEngine) {
+              this.chartEngine.startDrawingTool(tool);
+            }
+            this.audio.playClick();
+          });
+        });
+        const btnRailClear = document.getElementById("rail-clear");
+        if (btnRailClear) {
+          btnRailClear.addEventListener("click", () => {
+            if (this.chartEngine) this.chartEngine.clearUserDrawings();
+            this.audio.playClick();
+          });
+        }
+      }
 
       // Instrument Type Switcher (Options vs Futures)
       if (this.dom.btnInstOptions) {

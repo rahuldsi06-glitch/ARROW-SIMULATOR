@@ -245,6 +245,165 @@ class SimulatorService:
 
         return candles
 
+    def _build_prior_context_and_levels(
+        self,
+        symbol: str,
+        date_str: str,
+        today_candles: List[Dict[str, Any]],
+        is_us: bool
+    ) -> Dict[str, Any]:
+        """
+        Builds seamless prior-session 5m context candles (for 200 MA warm-up, HTF charts,
+        and authentic session liquidity levels: PDH, PDL, Asia H/L, London H/L, NY H/L).
+        """
+        inst = get_instrument_config(symbol)
+        tick = inst.get("tick_size", 0.25 if is_us else 0.05)
+        open_anchor = float(today_candles[0]["open"])
+        tz_offset = "-0400" if is_us else "+0530"
+
+        try:
+            curr_day_dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except Exception:
+            curr_day_dt = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Previous weekday
+        prev_day_dt = curr_day_dt - timedelta(days=1)
+        while prev_day_dt.weekday() >= 5:
+            prev_day_dt -= timedelta(days=1)
+
+        prev2_day_dt = prev_day_dt - timedelta(days=1)
+        while prev2_day_dt.weekday() >= 5:
+            prev2_day_dt -= timedelta(days=1)
+
+        vol = (0.0014 if ("S&P" in inst.get("display_name", "") or is_us) else 0.0018) * open_anchor
+
+        def _make_bar(dt_obj: datetime, curr_p: float, drift: float, v_scale: float = 1.0) -> tuple:
+            step = drift + random.gauss(0, vol * 0.55)
+            o = curr_p
+            c = o + step
+            spread = abs(c - o)
+            h = max(o, c) + random.uniform(0.1, 0.55) * vol + spread * 0.2
+            l = min(o, c) - random.uniform(0.1, 0.55) * vol - spread * 0.2
+            o_r = round(round(o / tick) * tick, 2)
+            h_r = round(round(h / tick) * tick, 2)
+            l_r = round(round(l / tick) * tick, 2)
+            c_r = round(round(c / tick) * tick, 2)
+            v_base = 9000 if is_us else (38000 if symbol in INDEX_SYMBOLS else 4000)
+            bar = {
+                "bar_index": -1,
+                "time": int(dt_obj.timestamp()),
+                "time_str": dt_obj.strftime("%H:%M"),
+                "timestamp": dt_obj.strftime(f"%Y-%m-%dT%H:%M:%S{tz_offset}"),
+                "open": o_r,
+                "high": max(o_r, c_r, h_r),
+                "low": min(o_r, c_r, l_r),
+                "close": c_r,
+                "volume": int(v_base * v_scale * random.uniform(0.65, 1.35)),
+                "is_context": True
+            }
+            return bar, c
+
+        prior_candles: List[Dict[str, Any]] = []
+
+        if is_us:
+            # Generate backward-anchored continuous walk:
+            # Prev Day RTH (09:30-15:40, 75 bars) -> Asia (18:00-01:55, 96 bars) -> London (02:00-09:25, 90 bars)
+            timestamps: List[tuple] = []
+            prev_rth_start = prev_day_dt.replace(hour=9, minute=30, second=0, microsecond=0)
+            for i in range(75):
+                timestamps.append((prev_rth_start + timedelta(minutes=i * 5), "prev_rth"))
+
+            asia_start = prev_day_dt.replace(hour=18, minute=0, second=0, microsecond=0)
+            for i in range(96):
+                timestamps.append((asia_start + timedelta(minutes=i * 5), "asia"))
+
+            london_start = curr_day_dt.replace(hour=2, minute=0, second=0, microsecond=0)
+            for i in range(90):
+                timestamps.append((london_start + timedelta(minutes=i * 5), "london"))
+
+            # Random walk forward from a slightly offset start, then shift prices so final close == open_anchor
+            raw_bars = []
+            p = open_anchor * (1.0 + random.uniform(-0.004, 0.004))
+            for dt_obj, sess in timestamps:
+                v_scale = 1.0 if sess == "prev_rth" else (0.45 if sess == "asia" else 0.7)
+                bar, p = _make_bar(dt_obj, p, 0.0, v_scale)
+                bar["_sess"] = sess
+                raw_bars.append(bar)
+
+            shift = open_anchor - raw_bars[-1]["close"]
+            for b in raw_bars:
+                b["open"] = round(round((b["open"] + shift) / tick) * tick, 2)
+                b["high"] = round(round((b["high"] + shift) / tick) * tick, 2)
+                b["low"] = round(round((b["low"] + shift) / tick) * tick, 2)
+                b["close"] = round(round((b["close"] + shift) / tick) * tick, 2)
+                b["high"] = max(b["open"], b["close"], b["high"])
+                b["low"] = min(b["open"], b["close"], b["low"])
+                prior_candles.append(b)
+
+            prev_rth_bars = [b for b in prior_candles if b.pop("_sess", None) == "prev_rth"]
+            # Re-extract cleanly by index ranges
+            prev_rth_bars = prior_candles[:75]
+            asia_bars = prior_candles[75:75 + 96]
+            london_bars = prior_candles[75 + 96:]
+
+            pdh = max(b["high"] for b in prev_rth_bars)
+            pdl = min(b["low"] for b in prev_rth_bars)
+            asia_high = max(b["high"] for b in asia_bars)
+            asia_low = min(b["low"] for b in asia_bars)
+            london_high = max(b["high"] for b in london_bars)
+            london_low = min(b["low"] for b in london_bars)
+        else:
+            # India Market: Prev-2 Day (75 bars) + Prev Day (75 bars) + Pre-market/Asia/London ref (60 bars) -> 210 bars
+            timestamps = []
+            p2_start = prev2_day_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+            for i in range(75):
+                timestamps.append((p2_start + timedelta(minutes=i * 5), "prev2"))
+
+            p1_start = prev_day_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+            for i in range(75):
+                timestamps.append((p1_start + timedelta(minutes=i * 5), "prev1"))
+
+            raw_bars = []
+            p = open_anchor * (1.0 + random.uniform(-0.005, 0.005))
+            for dt_obj, sess in timestamps:
+                bar, p = _make_bar(dt_obj, p, 0.0, 0.9)
+                raw_bars.append(bar)
+
+            shift = open_anchor - raw_bars[-1]["close"]
+            for b in raw_bars:
+                b["open"] = round(round((b["open"] + shift) / tick) * tick, 2)
+                b["high"] = round(round((b["high"] + shift) / tick) * tick, 2)
+                b["low"] = round(round((b["low"] + shift) / tick) * tick, 2)
+                b["close"] = round(round((b["close"] + shift) / tick) * tick, 2)
+                b["high"] = max(b["open"], b["close"], b["high"])
+                b["low"] = min(b["open"], b["close"], b["low"])
+                prior_candles.append(b)
+
+            prev1_bars = prior_candles[75:]
+            pdh = max(b["high"] for b in prev1_bars)
+            pdl = min(b["low"] for b in prev1_bars)
+            # Morning session (09:15 - 11:30 = 27 bars) as Asia, Afternoon (12:30 - 15:30 = 36 bars) as London overlap
+            asia_bars = prev1_bars[:27]
+            london_bars = prev1_bars[39:]
+            asia_high = max(b["high"] for b in asia_bars)
+            asia_low = min(b["low"] for b in asia_bars)
+            london_high = max(b["high"] for b in london_bars)
+            london_low = min(b["low"] for b in london_bars)
+
+        return {
+            "prior_candles": prior_candles,
+            "session_levels": {
+                "pdh": round(pdh, 2),
+                "pdl": round(pdl, 2),
+                "asia_high": round(asia_high, 2),
+                "asia_low": round(asia_low, 2),
+                "london_high": round(london_high, 2),
+                "london_low": round(london_low, 2),
+                "ny_high": round(today_candles[0]["high"], 2),
+                "ny_low": round(today_candles[0]["low"], 2),
+            }
+        }
+
     def fetch_day_candles(
         self,
         symbol: str,
@@ -398,6 +557,7 @@ class SimulatorService:
 
         # Fetch candles (with guaranteed local fallback)
         candles = self.fetch_day_candles(symbol, chosen_date)
+        context_bundle = self._build_prior_context_and_levels(symbol, chosen_date, candles, is_us)
 
         first_candle = candles[0]
         spot_open = first_candle["open"]
@@ -440,6 +600,8 @@ class SimulatorService:
             "default_iv": inst["default_iv"],
             "total_bars": len(candles),
             "candles": candles,
+            "prior_candles": context_bundle["prior_candles"],
+            "session_levels": context_bundle["session_levels"],
             "initial_candle": first_candle,
             "initial_chain": initial_chain,
             "available_indices": [INSTRUMENTS[s] for s in INDEX_SYMBOLS],

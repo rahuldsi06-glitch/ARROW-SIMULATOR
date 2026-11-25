@@ -3,16 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARROW TRADE PRO // Options Battle Simulator</title>
+  <title>ARROW TRADE PRO 2.0 // TradingView &amp; Prop Firm Simulator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/game.css">
-  <!-- TradingView Lightweight Charts (Local standalone copy with fallback) -->
-  <script src="/static/lightweight-charts.standalone.production.js"></script>
+  <!-- KLineChart v9 (TradingView-grade charting) & Three.js 3D Engine -->
+  <script src="/static/klinecharts.min.js"></script>
+  <script src="/static/three.min.js"></script>
+  <script src="/static/three_gamification.js"></script>
+  <script src="/static/chart_engine_v2.js"></script>
 </head>
 <body class="theme-obsidian">
+  <!-- THREE.JS 3D AMBIENT DEPTH & CELEBRATION OVERLAY -->
+  <canvas id="three-bg-canvas" class="three-bg-canvas"></canvas>
+  <canvas id="three-fx-canvas" class="three-fx-canvas"></canvas>
 
   <!-- TOP APP BAR -->
   <header class="app-header">
@@ -25,7 +31,7 @@
         </div>
         <div class="brand-text">
           <span class="brand-title">ARROW</span>
-          <span class="brand-badge">PRO SIMULATOR</span>
+          <span class="brand-badge">PRO 2.0</span>
         </div>
       </div>
 
@@ -132,11 +138,14 @@
         <span class="stat-value font-mono neutral" id="hud-pnl">₹ 0.00 <span class="stat-pct" id="hud-pnl-pct">(0.0%)</span></span>
       </div>
 
-      <!-- Trader Rank & XP -->
+      <!-- Trader Rank & XP (with 3D Core Emblem) -->
       <div class="trader-rank-hud" id="hud-rank-container">
-        <div class="rank-badge" id="hud-rank-badge">Floor Trader</div>
-        <div class="xp-bar-wrapper">
-          <div class="xp-bar-fill" id="hud-xp-bar" style="width: 15%;"></div>
+        <canvas id="three-rank-canvas" class="three-rank-canvas" width="42" height="42" title="3D Rank Core"></canvas>
+        <div class="rank-meta">
+          <div class="rank-badge" id="hud-rank-badge">Floor Trader</div>
+          <div class="xp-bar-wrapper">
+            <div class="xp-bar-fill" id="hud-xp-bar" style="width: 15%;"></div>
+          </div>
         </div>
       </div>
 
@@ -297,39 +306,126 @@
         </div>
       </div>
 
-      <!-- TRADINGVIEW LIGHTWEIGHT CHART CANVAS -->
-      <div class="chart-canvas-container" id="chart-wrapper">
-        <div id="tv-chart" class="tv-chart"></div>
-
-        <!-- INTERACTIVE CHART ACTION BANNER (When drawing Fib or Placing SL/Target) -->
-        <div id="chart-action-banner" class="chart-action-banner hidden">
-          <span class="action-pulse-dot"></span>
-          <span id="chart-action-text" class="action-text">Click Point 1 on chart...</span>
-          <button id="btn-cancel-chart-action" class="btn-cancel-action">Cancel (Esc)</button>
-        </div>
-
-        <!-- ACTIVE TRADE HUD OVERLAY (when trade is active) -->
-        <div id="trade-chart-overlay" class="trade-chart-overlay hidden">
-          <div class="active-trade-pill">
-            <span class="pulsing-dot"></span>
-            <span id="overlay-strike-badge" class="strike-pill">23300 CE</span>
-            <span class="overlay-qty" id="overlay-qty">50 Qty</span>
-            <span class="overlay-entry" id="overlay-entry">Entry: ₹145.20</span>
-            <span class="overlay-cur" id="overlay-cur">LTP: ₹162.00</span>
-            <span class="overlay-pnl font-mono" id="overlay-pnl">+₹840 (+11.5%)</span>
+      <!-- PRO 2.0 TIMEFRAME, SESSION LIQUIDITY LEVELS & HTF RIBBON -->
+      <div class="chart-pro-ribbon">
+        <div class="ribbon-group">
+          <span class="ribbon-label">INTERVAL</span>
+          <div class="tf-pill-group" id="main-tf-group">
+            <button class="tf-btn active" data-tf="5m">5m</button>
+            <button class="tf-btn" data-tf="15m">15m</button>
+            <button class="tf-btn" data-tf="30m">30m</button>
+            <button class="tf-btn" data-tf="1H">1H</button>
           </div>
         </div>
 
-        <!-- PROPFIRM DAILY LOSS LIMIT SOFT-LOCK BANNER -->
-        <div id="propfirm-dll-banner" class="propfirm-dll-banner hidden">
-          <div class="dll-banner-content">
-            <span class="dll-icon">🛑</span>
-            <div class="dll-text">
-              <strong class="dll-headline">DAILY LOSS LIMIT BREACHED</strong>
-              <p id="dll-banner-sub">Intraday loss has reached the Daily Loss Limit. Trading for this session is locked to protect your evaluation account. Advance to the next market session to continue trading.</p>
+        <div class="ribbon-sep"></div>
+
+        <div class="ribbon-group">
+          <span class="ribbon-label">LIQUIDITY LEVELS</span>
+          <div class="level-pill-group" id="session-levels-group">
+            <button id="toggle-lvl-pdh" class="lvl-btn" data-level="pdh" title="Previous Day High">PDH</button>
+            <button id="toggle-lvl-pdl" class="lvl-btn" data-level="pdl" title="Previous Day Low">PDL</button>
+            <button id="toggle-lvl-asia" class="lvl-btn" data-level="asia" title="Asia Session High &amp; Low">Asia H/L</button>
+            <button id="toggle-lvl-london" class="lvl-btn" data-level="london" title="London Session High &amp; Low">London H/L</button>
+            <button id="toggle-lvl-ny" class="lvl-btn" data-level="ny" title="New York Session High &amp; Low">NY H/L</button>
+            <button id="toggle-lvl-all" class="lvl-btn lvl-all-btn" title="Toggle All Key Levels ON/OFF">All</button>
+          </div>
+        </div>
+
+        <div class="ribbon-sep"></div>
+
+        <div class="ribbon-group">
+          <span class="ribbon-label">STYLE</span>
+          <select id="chart-style-select" class="cyber-select sm-select" title="Candlestick Style">
+            <option value="candle_solid">Candles</option>
+            <option value="candle_stroke">Hollow</option>
+            <option value="ohlc">OHLC Bars</option>
+          </select>
+        </div>
+
+        <div class="ribbon-group ribbon-right">
+          <button id="btn-toggle-htf" class="htf-toggle-btn active" title="Toggle Right-Side Higher Timeframe (HTF) Chart">
+            <span>📊 HTF Split</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TRADINGVIEW PRO 2.0 SPLIT WORKSPACE (LEFT TOOLS + MAIN CHART + RIGHT HTF CHART) -->
+      <div class="chart-canvas-container chart-split-workspace" id="chart-wrapper">
+        <!-- Left TradingView Drawing Rail -->
+        <div class="tv-drawing-rail" id="tv-drawing-rail">
+          <button class="rail-btn active" id="rail-cursor" data-tool="cursor" title="Crosshair / Pan">
+            <span>✛</span>
+          </button>
+          <button class="rail-btn" id="rail-trendline" data-tool="segment" title="Draw Trendline">
+            <span>╱</span>
+          </button>
+          <button class="rail-btn" id="rail-hline" data-tool="horizontalStraightLine" title="Draw Horizontal Support/Resistance">
+            <span>―</span>
+          </button>
+          <button class="rail-btn" id="rail-fib" data-tool="fibonacciLine" title="Draw Fibonacci Retracement">
+            <span>📐</span>
+          </button>
+          <button class="rail-btn" id="rail-rect" data-tool="rect" title="Draw Supply / Demand Zone Box">
+            <span>▭</span>
+          </button>
+          <div class="rail-spacer"></div>
+          <button class="rail-btn rail-danger" id="rail-clear" title="Clear All User Drawings">
+            <span>🗑️</span>
+          </button>
+        </div>
+
+        <!-- Main Price Chart Pane -->
+        <div class="chart-main-pane" id="main-chart-pane">
+          <div id="tv-chart" class="tv-chart"></div>
+
+          <!-- INTERACTIVE CHART ACTION BANNER (When drawing Fib or Placing SL/Target) -->
+          <div id="chart-action-banner" class="chart-action-banner hidden">
+            <span class="action-pulse-dot"></span>
+            <span id="chart-action-text" class="action-text">Click Point 1 on chart...</span>
+            <button id="btn-cancel-chart-action" class="btn-cancel-action">Cancel (Esc)</button>
+          </div>
+
+          <!-- ACTIVE TRADE HUD OVERLAY (when trade is active) -->
+          <div id="trade-chart-overlay" class="trade-chart-overlay hidden">
+            <div class="active-trade-pill">
+              <span class="pulsing-dot"></span>
+              <span id="overlay-strike-badge" class="strike-pill">23300 CE</span>
+              <span class="overlay-qty" id="overlay-qty">50 Qty</span>
+              <span class="overlay-entry" id="overlay-entry">Entry: ₹145.20</span>
+              <span class="overlay-cur" id="overlay-cur">LTP: ₹162.00</span>
+              <span class="overlay-pnl font-mono" id="overlay-pnl">+₹840 (+11.5%)</span>
             </div>
-            <button id="btn-dll-next-day" class="btn-primary glow-play">Advance to Next Day ⏩</button>
           </div>
+
+          <!-- PROPFIRM DAILY LOSS LIMIT SOFT-LOCK BANNER -->
+          <div id="propfirm-dll-banner" class="propfirm-dll-banner hidden">
+            <div class="dll-banner-content">
+              <span class="dll-icon">🛑</span>
+              <div class="dll-text">
+                <strong class="dll-headline">DAILY LOSS LIMIT BREACHED</strong>
+                <p id="dll-banner-sub">Intraday loss has reached the Daily Loss Limit. Trading for this session is locked to protect your evaluation account. Advance to the next market session to continue trading.</p>
+              </div>
+              <button id="btn-dll-next-day" class="btn-primary glow-play">Advance to Next Day ⏩</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right-Side Higher Timeframe (HTF) Chart Pane -->
+        <div class="chart-htf-pane" id="htf-pane">
+          <div class="htf-header">
+            <div class="htf-title-group">
+              <span class="htf-badge">HTF BIAS</span>
+              <span id="htf-symbol-label" class="htf-symbol font-mono">NIFTY</span>
+            </div>
+            <div class="tf-pill-group sm" id="htf-tf-group">
+              <button class="tf-btn active" data-tf="15m">15m</button>
+              <button class="tf-btn" data-tf="30m">30m</button>
+              <button class="tf-btn" data-tf="1H">1H</button>
+              <button class="tf-btn" data-tf="4H">4H</button>
+            </div>
+          </div>
+          <div id="htf-chart" class="htf-chart"></div>
         </div>
       </div>
 
