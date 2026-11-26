@@ -1173,6 +1173,19 @@
         <input type="range" id="pf-slider-mindays" min="1" max="10" step="1" value="2" class="cyber-slider">
       </div>
 
+      <!-- Starting Trading Date -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <label for="pf-input-start-date" class="pf-label">STARTING TRADING DATE (SEQUENTIAL):</label>
+        </div>
+        <div class="pf-custom-input-row">
+          <input type="date" id="pf-input-start-date" class="cyber-input font-mono" value="2026-10-01" min="2025-01-06" style="width: 100%;">
+        </div>
+        <p class="pf-help-text" style="margin-top: 4px;">
+          Days advance sequentially from this date so your P&amp;L Calendar tracks a realistic multi-day streak.
+        </p>
+      </div>
+
       <!-- Modal Actions -->
       <div class="settings-actions">
         <button id="btn-save-propfirm-setup" class="btn-primary glow-play">Start Combine Challenge 🚀</button>
@@ -1286,6 +1299,11 @@
             </div>
           </label>
         </div>
+      </div>
+
+      <div class="pf-field-group" style="margin-top: 12px;">
+        <label for="pf-input-funded-start-date" class="pf-label">FUNDED ACCOUNT STARTING DATE (SEQUENTIAL):</label>
+        <input type="date" id="pf-input-funded-start-date" class="cyber-input font-mono" min="2025-01-06" style="width: 100%; margin-top: 4px;">
       </div>
 
       <div class="settings-actions">

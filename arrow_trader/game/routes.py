@@ -24,6 +24,7 @@ class SessionCreateRequest(BaseModel):
     market: Optional[str] = "IN"  # 'IN' or 'US'
     symbol: Optional[str] = None
     date: Optional[str] = None
+    next_after_date: Optional[str] = None
     blind_mode: bool = False
 
 
@@ -133,6 +134,7 @@ def create_game_session(req: SessionCreateRequest) -> Dict[str, Any]:
             mode=req.mode,
             symbol=req.symbol,
             date=req.date,
+            next_after_date=req.next_after_date,
             blind_mode=req.blind_mode,
             market=req.market
         )

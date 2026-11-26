@@ -375,18 +375,22 @@ class TestFastAPIRoutes(unittest.TestCase):
         remainder = round((first_candle["close"] * 100) % 25, 2)
         self.assertIn(remainder, [0.0, 25.0])
 
-        # Verify that clicking New Day / creating sessions produces randomized dates
-        dates_seen = set()
-        for _ in range(8):
+        # Verify sequential progression via next_after_date produces distinct increasing trading dates
+        cur_date = sess["date"]
+        dates_seen = [cur_date]
+        for _ in range(5):
             r = self.client.post("/api/game/session", json={
                 "mode": "us_futures",
                 "market": "US",
-                "symbol": "MES"
+                "symbol": "MES",
+                "next_after_date": cur_date
             })
             self.assertEqual(r.status_code, 200)
-            dates_seen.add(r.json()["session"]["date"])
-        # Should have multiple distinct dates among 8 draws
-        self.assertGreater(len(dates_seen), 1)
+            nxt = r.json()["session"]["date"]
+            self.assertGreater(nxt, cur_date)
+            dates_seen.append(nxt)
+            cur_date = nxt
+        self.assertEqual(len(set(dates_seen)), 6)
 
     def test_us_futures_trade_recording_and_usd_balances(self):
         # 1. Reset US account balance to $50,000
@@ -937,6 +941,22 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(pf["daily_loss_limit_amount"], 250.0)
         self.assertTrue(pf["daily_profit_limit_enabled"])
         self.assertEqual(pf["daily_profit_limit_amount"], 400.0)
+
+    def test_sequential_day_progression(self):
+        # Start on Thursday 2026-10-01
+        r1 = self.client.post("/api/game/session", json={"mode": "us_futures", "market": "US", "symbol": "MES", "date": "2026-10-01"})
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r1.json()["session"]["date"], "2026-10-01")
+
+        # Next day -> Friday 2026-10-02
+        r2 = self.client.post("/api/game/session", json={"mode": "us_futures", "market": "US", "symbol": "MES", "next_after_date": "2026-10-01"})
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.json()["session"]["date"], "2026-10-02")
+
+        # Next day -> skips weekend -> Monday 2026-10-05
+        r3 = self.client.post("/api/game/session", json={"mode": "us_futures", "market": "US", "symbol": "MES", "next_after_date": "2026-10-02"})
+        self.assertEqual(r3.status_code, 200)
+        self.assertEqual(r3.json()["session"]["date"], "2026-10-05")
 
 
 if __name__ == "__main__":

@@ -155,6 +155,28 @@ class SimulatorService:
             curr += timedelta(days=1)
         return dates
 
+    def get_next_trading_date(self, current_date: str, is_us: bool) -> str:
+        """Returns the next sequential valid trading date strictly after current_date."""
+        dates = self.get_us_trading_dates() if is_us else self.get_trading_dates()
+        if not dates:
+            return current_date
+        for d in dates:
+            if d > current_date:
+                return d
+        return dates[0]
+
+    def snap_to_trading_date(self, target_date: str, is_us: bool) -> str:
+        """Snaps a user-chosen date to itself if valid, or the nearest trading day >= target_date."""
+        dates = self.get_us_trading_dates() if is_us else self.get_trading_dates()
+        if not dates:
+            return target_date
+        if target_date in dates:
+            return target_date
+        for d in dates:
+            if d >= target_date:
+                return d
+        return dates[-1]
+
     def parse_iso_timestamp(self, ts_str: str) -> int:
         """Parse Arrow ISO timestamp into Unix seconds timestamp."""
         clean = str(ts_str)
@@ -515,7 +537,8 @@ class SimulatorService:
         symbol: Optional[str] = None,
         date: Optional[str] = None,
         blind_mode: bool = False,
-        market: Optional[str] = None
+        market: Optional[str] = None,
+        next_after_date: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Creates and initializes a new gameplay session:
@@ -546,20 +569,21 @@ class SimulatorService:
         is_us = (inst.get("market") == "US") or (mode == "us_futures")
 
         if is_us:
+            us_dates = self.get_us_trading_dates()
             if date and len(date) == 10:
-                chosen_date = date
+                chosen_date = self.snap_to_trading_date(date, True)
+            elif next_after_date and len(next_after_date) == 10:
+                chosen_date = self.get_next_trading_date(next_after_date, True)
             else:
-                us_dates = self.get_us_trading_dates()
-                chosen_date = random.choice(us_dates) if us_dates else "2026-09-15"
+                chosen_date = us_dates[-20] if len(us_dates) >= 20 else (us_dates[0] if us_dates else "2026-10-01")
         else:
-            # Use full Indian trading calendar up to yesterday (local cache used if present, otherwise synthesized)
             valid_dates = self.get_trading_dates()
             if date and len(date) == 10:
-                chosen_date = date
-            elif valid_dates:
-                chosen_date = random.choice(valid_dates)
+                chosen_date = self.snap_to_trading_date(date, False)
+            elif next_after_date and len(next_after_date) == 10:
+                chosen_date = self.get_next_trading_date(next_after_date, False)
             else:
-                chosen_date = "2026-11-25"
+                chosen_date = valid_dates[-20] if len(valid_dates) >= 20 else (valid_dates[0] if valid_dates else "2026-10-01")
 
         # Fetch candles (with guaranteed local fallback)
         candles = self.fetch_day_candles(symbol, chosen_date)

@@ -627,6 +627,8 @@
       this.dom.pfTargetGoalPreview = document.getElementById("pf-target-goal-preview");
       this.dom.pfSliderMinDays = document.getElementById("pf-slider-mindays");
       this.dom.pfMinDaysReadout = document.getElementById("pf-mindays-readout");
+      this.dom.pfInputStartDate = document.getElementById("pf-input-start-date");
+      this.dom.pfInputFundedStartDate = document.getElementById("pf-input-funded-start-date");
 
       // Modal: Failed
       this.dom.modalPropFirmFailed = document.getElementById("modal-propfirm-failed");
@@ -973,6 +975,7 @@
 
       const isUS = this.currentMarket === "US";
       const sym = symbol || this.currentSymbol || (isUS ? "MES" : "NIFTY");
+      const nextAfterDate = (!date && this.session && this.session.date) ? this.session.date : null;
       this.currentSymbol = sym;
 
       // Show loading UI
@@ -988,6 +991,7 @@
             market: this.currentMarket,
             symbol: sym,
             date: date,
+            next_after_date: nextAfterDate,
             blind_mode: this.blindMode
           })
         });
@@ -3924,7 +3928,18 @@
       if (this.dom.pfPassProfit) this.dom.pfPassProfit.innerText = `+${this.formatCurrency(profitEarned)}`;
       if (this.dom.pfPassDays) this.dom.pfPassDays.innerText = `${pf.trading_days_count || 1} Days`;
       if (this.dom.pfPassBestDay) {
-        this.dom.pfPassBestDay.innerText = `${this.formatCurrency(pf.largest_day_profit)} (${pf.largest_day_pct.toFixed(1)}%)`;
+        this.dom.pfPassBestDay.innerText = `${this.formatCurrency(pf.largest_day_profit)} (${(pf.largest_day_pct || 0).toFixed(1)}%)`;
+      }
+      if (this.dom.pfInputFundedStartDate) {
+        const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        this.dom.pfInputFundedStartDate.max = yest;
+        const baseD = (this.session && this.session.date) ? new Date(this.session.date + "T12:00:00Z") : new Date("2026-10-01T12:00:00Z");
+        baseD.setUTCDate(baseD.getUTCDate() + 1);
+        while (baseD.getUTCDay() === 0 || baseD.getUTCDay() === 6) {
+          baseD.setUTCDate(baseD.getUTCDate() + 1);
+        }
+        const defDate = baseD.toISOString().slice(0, 10);
+        this.dom.pfInputFundedStartDate.value = defDate <= yest ? defDate : yest;
       }
 
       this.dom.modalPropFirmPassed.classList.remove("hidden");
@@ -3945,6 +3960,11 @@
       if (this.dom.pfInputDplAmount) this.dom.pfInputDplAmount.value = pf.daily_profit_limit_amount || Math.round(pf.account_size * 0.024);
       if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = pf.profit_target_pct;
       if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = pf.min_trading_days;
+      if (this.dom.pfInputStartDate) {
+        const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        this.dom.pfInputStartDate.max = yest;
+        this.dom.pfInputStartDate.value = (this.session && this.session.date) ? this.session.date : "2026-10-01";
+      }
 
       // Select matching size chip if exists
       if (this.dom.pfSizeChips) {
@@ -4144,7 +4164,8 @@
         this.dom.modalPropFirmSetup.classList.add("hidden");
         this.audio.playClick();
 
-        this.startNewSession(this.currentSymbol);
+        const startDate = (this.dom.pfInputStartDate && this.dom.pfInputStartDate.value) ? this.dom.pfInputStartDate.value : null;
+        this.startNewSession(this.currentSymbol, startDate);
       } catch (e) {
         console.error("Save prop firm setup failed:", e);
       }
@@ -4229,7 +4250,8 @@
 
         const consLabel = consistencyChoice === 0 ? "No" : `${consistencyChoice}%`;
         alert(`🎉 CONGRATULATIONS! Your $${fundedCap.toLocaleString()} FUNDED ACCOUNT is now active with ${consLabel} consistency rule. Trade with discipline and secure your payouts!`);
-        this.startNewSession(this.currentSymbol);
+        const fundedStartDate = (this.dom.pfInputFundedStartDate && this.dom.pfInputFundedStartDate.value) ? this.dom.pfInputFundedStartDate.value : null;
+        this.startNewSession(this.currentSymbol, fundedStartDate);
       } catch (e) {
         console.error("Funded account activation failed:", e);
       }
