@@ -822,11 +822,13 @@ class SimulatorService:
         daily_loss_limit_enabled: bool = True,
         daily_loss_limit_amount: Optional[float] = None,
         daily_profit_limit_enabled: bool = False,
-        daily_profit_limit_amount: float = 0.0
+        daily_profit_limit_amount: float = 0.0,
+        start_phase: str = "evaluation",
+        consistency_rule_pct: float = 40.0
     ) -> Dict[str, Any]:
-        """Configures or restarts a Prop Firm Evaluation Challenge."""
+        """Configures or restarts a Prop Firm Evaluation Challenge or Direct Funded Account."""
         state = self.load_game_state()
-        state["prop_firm"] = self.get_default_prop_firm_state(
+        pf = self.get_default_prop_firm_state(
             account_size=account_size,
             drawdown_type=drawdown_type,
             max_dd_pct=max_dd_pct,
@@ -838,6 +840,11 @@ class SimulatorService:
             daily_profit_limit_enabled=daily_profit_limit_enabled,
             daily_profit_limit_amount=daily_profit_limit_amount
         )
+        if str(start_phase).lower() == "funded":
+            pf["phase"] = "funded"
+            pf["status"] = "active"
+            pf["consistency_rule_pct"] = float(consistency_rule_pct)
+        state["prop_firm"] = pf
         state["usd_starting_balance"] = account_size
         state["usd_current_balance"] = account_size
         if state.get("market") == "US":
@@ -845,6 +852,31 @@ class SimulatorService:
             state["current_balance"] = account_size
         self.save_game_state(state)
         return state["prop_firm"]
+
+    def update_daily_risk(
+        self,
+        daily_loss_limit_enabled: bool,
+        daily_loss_limit_amount: float,
+        daily_profit_limit_enabled: bool,
+        daily_profit_limit_amount: float,
+        client_prop_firm: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Updates Daily Max Loss and Daily Max Profit Cap without resetting the active account."""
+        state = self.load_game_state()
+        if client_prop_firm and isinstance(client_prop_firm, dict) and client_prop_firm.get("account_size"):
+            pf = client_prop_firm
+        else:
+            pf = state.get("prop_firm", self.get_default_prop_firm_state())
+
+        account_size = float(pf.get("account_size", 50000.0))
+        pf["daily_loss_limit_enabled"] = bool(daily_loss_limit_enabled)
+        pf["daily_loss_limit_amount"] = round(float(daily_loss_limit_amount), 2) if daily_loss_limit_enabled else 0.0
+        pf["daily_loss_limit_pct"] = round((pf["daily_loss_limit_amount"] / account_size) * 100, 2) if account_size > 0 else 0.0
+        pf["daily_profit_limit_enabled"] = bool(daily_profit_limit_enabled)
+        pf["daily_profit_limit_amount"] = round(float(daily_profit_limit_amount), 2) if daily_profit_limit_enabled else 0.0
+        state["prop_firm"] = pf
+        self.save_game_state(state)
+        return pf
 
     def process_prop_firm_eod(
         self,

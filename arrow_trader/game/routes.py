@@ -85,6 +85,8 @@ class ResetAccountRequest(BaseModel):
 
 class PropFirmSetupRequest(BaseModel):
     account_size: float = 50000.0
+    start_phase: str = "evaluation"  # 'evaluation' or 'funded'
+    consistency_rule_pct: float = 40.0
     drawdown_type: str = "eod_trailing"  # 'static' or 'eod_trailing'
     max_drawdown_pct: float = 5.0
     daily_loss_limit_enabled: bool = True
@@ -94,6 +96,14 @@ class PropFirmSetupRequest(BaseModel):
     daily_profit_limit_amount: float = 0.0
     profit_target_pct: float = 6.0
     min_trading_days: int = 2
+
+
+class DailyRiskRequest(BaseModel):
+    daily_loss_limit_enabled: bool = True
+    daily_loss_limit_amount: float = 1500.0
+    daily_profit_limit_enabled: bool = False
+    daily_profit_limit_amount: float = 0.0
+    prop_firm: Optional[Dict[str, Any]] = None
 
 
 class PropFirmEODRequest(BaseModel):
@@ -275,6 +285,8 @@ def setup_propfirm(req: PropFirmSetupRequest) -> Dict[str, Any]:
     try:
         pf = simulator.setup_prop_firm(
             account_size=req.account_size,
+            start_phase=req.start_phase,
+            consistency_rule_pct=req.consistency_rule_pct,
             drawdown_type=req.drawdown_type,
             max_dd_pct=req.max_drawdown_pct,
             dll_pct=req.daily_loss_limit_pct if req.daily_loss_limit_enabled else 0.0,
@@ -287,9 +299,25 @@ def setup_propfirm(req: PropFirmSetupRequest) -> Dict[str, Any]:
         )
         return {
             "status": "success",
-            "message": f"Prop Firm Challenge configured for ${req.account_size:,.2f} ({req.drawdown_type.upper()})",
+            "message": f"Prop Firm {req.start_phase.title()} configured for ${req.account_size:,.2f} ({req.drawdown_type.upper()})",
             "prop_firm": pf
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/propfirm/daily-risk")
+def update_daily_risk(req: DailyRiskRequest) -> Dict[str, Any]:
+    """Updates Daily Max Loss and Daily Max Profit Cap independently without resetting account."""
+    try:
+        pf = simulator.update_daily_risk(
+            daily_loss_limit_enabled=req.daily_loss_limit_enabled,
+            daily_loss_limit_amount=req.daily_loss_limit_amount,
+            daily_profit_limit_enabled=req.daily_profit_limit_enabled,
+            daily_profit_limit_amount=req.daily_profit_limit_amount,
+            client_prop_firm=req.prop_firm,
+        )
+        return {"status": "success", "prop_firm": pf}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

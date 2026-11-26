@@ -238,8 +238,11 @@
         </div>
 
         <div class="pf-hud-right">
-          <button id="btn-pf-rules" class="btn-pf-action" title="Configure Prop Firm Rules &amp; Combine Criteria">
-            <span>⚙️ Prop Firm Rules</span>
+          <button id="btn-pf-daily-risk" class="btn-pf-action" title="Configure Daily Max Loss &amp; Daily Max Profit Cap anytime">
+            <span>🛡️ Daily Risk</span>
+          </button>
+          <button id="btn-pf-rules" class="btn-pf-action" title="Configure New Challenge or Funded Account">
+            <span>⚙️ Account Setup</span>
           </button>
           <button id="btn-pf-payout" class="btn-pf-action glow-emerald hidden" title="Request Simulated Payout (Funded Only)">
             <span>💰 Payout</span>
@@ -1081,6 +1084,30 @@
         </div>
       </div>
 
+      <!-- Account Stage: Evaluation Challenge vs Direct Funded Account -->
+      <div class="pf-field-group">
+        <label class="pf-label">ACCOUNT MODE:</label>
+        <div class="segmented-control" id="pf-start-phase-control" style="width: 100%;">
+          <button class="segment-btn active" id="btn-pf-phase-eval" data-phase="evaluation" style="flex: 1;">
+            <span>🏆 Evaluation Challenge</span>
+          </button>
+          <button class="segment-btn" id="btn-pf-phase-funded" data-phase="funded" style="flex: 1;">
+            <span>💎 Direct Funded Account</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Direct Funded Consistency Rule (Shown only when Direct Funded is selected) -->
+      <div class="pf-field-group hidden" id="pf-direct-consistency-group">
+        <label class="pf-label">FUNDED CONSISTENCY RULE:</label>
+        <select id="pf-direct-consistency-select" class="cyber-select" style="width: 100%;">
+          <option value="0">No Consistency Rule (Free Payouts)</option>
+          <option value="50">50% Consistency Rule (Apex Standard)</option>
+          <option value="40" selected>40% Consistency Rule (Topstep Standard)</option>
+          <option value="30">30% Consistency Rule (Conservative)</option>
+        </select>
+      </div>
+
       <!-- Drawdown Model: Static vs EOD Trailing -->
       <div class="pf-field-group">
         <label class="pf-label">DRAWDOWN TYPE:</label>
@@ -1111,47 +1138,8 @@
         </div>
       </div>
 
-      <!-- Daily Loss Limit (DLL) Slider + Custom $ Input -->
-      <div class="pf-field-group">
-        <div class="pf-slider-header">
-          <div class="pf-toggle-wrapper">
-            <input type="checkbox" id="pf-chk-dll" checked>
-            <label for="pf-chk-dll" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX LOSS (DLL):</label>
-          </div>
-          <span class="pf-slider-readout font-mono" id="pf-dll-readout">3.0% ($1,500)</span>
-        </div>
-        <input type="range" id="pf-slider-dll" min="1" max="5" step="0.5" value="3" class="cyber-slider">
-        <div class="pf-custom-input-row" style="margin-top: 6px;">
-          <span class="sub-label">Custom Daily Max Loss ($):</span>
-          <input type="number" id="pf-input-dll-amount" value="1500" min="50" step="50" class="cyber-input font-mono pf-num-input">
-        </div>
-        <div class="pf-slider-limits">
-          <span>1%</span>
-          <span id="pf-dll-desc">Locks trading for the day if hit (Tradovate style)</span>
-          <span>5%</span>
-        </div>
-      </div>
-
-      <!-- Daily Max Profit Cap (Consistency Rule Guard) -->
-      <div class="pf-field-group">
-        <div class="pf-slider-header">
-          <div class="pf-toggle-wrapper">
-            <input type="checkbox" id="pf-chk-dpl">
-            <label for="pf-chk-dpl" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX PROFIT CAP (CONSISTENCY):</label>
-          </div>
-          <span class="pf-slider-readout font-mono glow-green" id="pf-dpl-readout">Disabled</span>
-        </div>
-        <div class="pf-custom-input-row" style="margin-top: 6px;">
-          <span class="sub-label">Daily Max Profit ($):</span>
-          <input type="number" id="pf-input-dpl-amount" value="1200" min="50" step="50" class="cyber-input font-mono pf-num-input">
-        </div>
-        <p class="pf-help-text" style="margin-top: 4px;">
-          Locks in profits &amp; stops trading for the day once reached so you never violate your Consistency Rule.
-        </p>
-      </div>
-
       <!-- Profit Target Slider (4% - 12%) -->
-      <div class="pf-field-group">
+      <div class="pf-field-group" id="pf-eval-target-group">
         <div class="pf-slider-header">
           <label class="pf-label">PROFIT TARGET:</label>
           <span class="pf-slider-readout font-mono glow-green" id="pf-target-readout">6.0% ($3,000)</span>
@@ -1165,7 +1153,7 @@
       </div>
 
       <!-- Min Trading Days -->
-      <div class="pf-field-group">
+      <div class="pf-field-group" id="pf-eval-mindays-group">
         <div class="pf-slider-header">
           <label class="pf-label">MINIMUM TRADING DAYS:</label>
           <span class="pf-slider-readout font-mono" id="pf-mindays-readout">2 Days</span>
@@ -1372,6 +1360,59 @@
       <div class="settings-actions">
         <button id="btn-confirm-payout" class="btn-primary glow-emerald">Confirm Payout Request 💸</button>
         <button id="btn-cancel-payout" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 11: STANDALONE DAILY RISK SETTINGS (TRADOVATE / CONSISTENCY GUARD) -->
+  <div id="modal-daily-risk" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal auth-modal-card">
+      <div class="modal-close-btn" id="btn-close-daily-risk">✕</div>
+      <div class="pf-modal-header">
+        <div class="pf-modal-icon">🛡️</div>
+        <div>
+          <h2 class="modal-title">DAILY RISK SETTINGS</h2>
+          <p class="modal-subtitle">Configure Daily Max Loss &amp; Daily Max Profit Cap anytime without resetting your account</p>
+        </div>
+      </div>
+
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <div class="pf-toggle-wrapper">
+            <input type="checkbox" id="dr-chk-dll" checked>
+            <label for="dr-chk-dll" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX LOSS (TRADOVATE LOCK):</label>
+          </div>
+          <span class="pf-slider-readout font-mono" id="dr-dll-readout">$1,500</span>
+        </div>
+        <div class="pf-custom-input-row" style="margin-top: 6px;">
+          <span class="sub-label">Daily Max Loss ($):</span>
+          <input type="number" id="dr-input-dll-amount" value="1500" min="50" step="50" class="cyber-input font-mono pf-num-input">
+        </div>
+        <p class="pf-help-text" style="margin-top: 4px;">
+          Flattens positions and locks trading for the day if intraday loss reaches this limit. Re-enables on Next Day.
+        </p>
+      </div>
+
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <div class="pf-toggle-wrapper">
+            <input type="checkbox" id="dr-chk-dpl">
+            <label for="dr-chk-dpl" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX PROFIT CAP (CONSISTENCY):</label>
+          </div>
+          <span class="pf-slider-readout font-mono glow-green" id="dr-dpl-readout">Disabled</span>
+        </div>
+        <div class="pf-custom-input-row" style="margin-top: 6px;">
+          <span class="sub-label">Daily Max Profit ($):</span>
+          <input type="number" id="dr-input-dpl-amount" value="1200" min="50" step="50" class="cyber-input font-mono pf-num-input">
+        </div>
+        <p class="pf-help-text" style="margin-top: 4px;">
+          Locks in profits &amp; pauses trading for the day once hit so you never breach your Consistency Rule.
+        </p>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-save-daily-risk" class="btn-primary glow-play">Apply Risk Settings 🛡️</button>
+        <button id="btn-cancel-daily-risk" class="btn-secondary">Cancel</button>
       </div>
     </div>
   </div>

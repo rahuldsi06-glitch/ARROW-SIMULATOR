@@ -958,6 +958,39 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(r3.status_code, 200)
         self.assertEqual(r3.json()["session"]["date"], "2026-10-05")
 
+    def test_direct_funded_setup_and_standalone_daily_risk_update(self):
+        # 1. Start directly in Funded Account with 30% consistency rule
+        res = self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 100000.0,
+            "start_phase": "funded",
+            "consistency_rule_pct": 30.0,
+            "drawdown_type": "static",
+            "max_drawdown_pct": 5.0
+        })
+        self.assertEqual(res.status_code, 200)
+        pf = res.json()["prop_firm"]
+        self.assertEqual(pf["phase"], "funded")
+        self.assertEqual(pf["status"], "active")
+        self.assertEqual(pf["account_size"], 100000.0)
+        self.assertEqual(pf["consistency_rule_pct"], 30.0)
+        self.assertEqual(pf["drawdown_floor"], 95000.0)
+
+        # 2. Update Daily Risk Settings independently without resetting Funded account
+        dr_res = self.client.post("/api/game/propfirm/daily-risk", json={
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_amount": 400.0,
+            "daily_profit_limit_enabled": True,
+            "daily_profit_limit_amount": 800.0,
+            "prop_firm": pf
+        })
+        self.assertEqual(dr_res.status_code, 200)
+        pf2 = dr_res.json()["prop_firm"]
+        self.assertEqual(pf2["phase"], "funded")
+        self.assertEqual(pf2["account_size"], 100000.0)
+        self.assertEqual(pf2["daily_loss_limit_amount"], 400.0)
+        self.assertTrue(pf2["daily_profit_limit_enabled"])
+        self.assertEqual(pf2["daily_profit_limit_amount"], 800.0)
+
 
 if __name__ == "__main__":
     unittest.main()

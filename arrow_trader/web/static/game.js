@@ -594,6 +594,7 @@
       this.dom.pfDaysVal = document.getElementById("pf-days-val");
       this.dom.pfConsistencyVal = document.getElementById("pf-consistency-val");
       this.dom.btnPfRules = document.getElementById("btn-pf-rules");
+      this.dom.btnPfDailyRisk = document.getElementById("btn-pf-daily-risk");
       this.dom.btnPfPayout = document.getElementById("btn-pf-payout");
       this.dom.btnPfReset = document.getElementById("btn-pf-reset");
 
@@ -3946,6 +3947,76 @@
       this.audio.playTargetWin();
     }
 
+    openDailyRiskModal() {
+      const modal = document.getElementById("modal-daily-risk");
+      if (!modal) return;
+      const pf = this.propFirm || this.getDefaultPropFirmState();
+      const chkDll = document.getElementById("dr-chk-dll");
+      const inDll = document.getElementById("dr-input-dll-amount");
+      const chkDpl = document.getElementById("dr-chk-dpl");
+      const inDpl = document.getElementById("dr-input-dpl-amount");
+
+      if (chkDll) chkDll.checked = !!pf.daily_loss_limit_enabled;
+      if (inDll) inDll.value = pf.daily_loss_limit_amount || Math.round((pf.account_size || 50000) * 0.03);
+      if (chkDpl) chkDpl.checked = !!pf.daily_profit_limit_enabled;
+      if (inDpl) inDpl.value = pf.daily_profit_limit_amount || 1200;
+
+      this.updateDailyRiskReadouts();
+      modal.classList.remove("hidden");
+      this.audio.playClick();
+    }
+
+    updateDailyRiskReadouts() {
+      const dllOn = document.getElementById("dr-chk-dll")?.checked;
+      const dllAmt = parseFloat(document.getElementById("dr-input-dll-amount")?.value) || 0;
+      const dllRead = document.getElementById("dr-dll-readout");
+      if (dllRead) dllRead.innerText = dllOn ? `-$${dllAmt.toLocaleString()} / day` : "Disabled";
+
+      const dplOn = document.getElementById("dr-chk-dpl")?.checked;
+      const dplAmt = parseFloat(document.getElementById("dr-input-dpl-amount")?.value) || 0;
+      const dplRead = document.getElementById("dr-dpl-readout");
+      if (dplRead) dplRead.innerText = dplOn ? `+$${dplAmt.toLocaleString()} / day` : "Disabled";
+    }
+
+    async saveDailyRiskSettings() {
+      const dllOn = !!document.getElementById("dr-chk-dll")?.checked;
+      const dllAmt = Math.max(0, parseFloat(document.getElementById("dr-input-dll-amount")?.value) || 0);
+      const dplOn = !!document.getElementById("dr-chk-dpl")?.checked;
+      const dplAmt = Math.max(0, parseFloat(document.getElementById("dr-input-dpl-amount")?.value) || 0);
+
+      if (!this.propFirm) this.propFirm = this.getDefaultPropFirmState();
+      const cap = parseFloat(this.propFirm.account_size) || 50000;
+      this.propFirm.daily_loss_limit_enabled = dllOn;
+      this.propFirm.daily_loss_limit_amount = dllOn ? dllAmt : 0;
+      this.propFirm.daily_loss_limit_pct = dllOn && cap > 0 ? Math.round((dllAmt / cap) * 1000) / 10 : 0;
+      this.propFirm.daily_profit_limit_enabled = dplOn;
+      this.propFirm.daily_profit_limit_amount = dplOn ? dplAmt : 0;
+
+      this.saveState();
+      this.renderPropFirmHUD();
+      document.getElementById("modal-daily-risk")?.classList.add("hidden");
+      this.audio.playClick();
+
+      // Immediately enforce updated limits on current intraday session
+      this.checkPropFirmIntradayRisk(this.currentCapital, this.dayPnL);
+
+      try {
+        await fetch("/api/game/propfirm/daily-risk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            daily_loss_limit_enabled: dllOn,
+            daily_loss_limit_amount: dllAmt,
+            daily_profit_limit_enabled: dplOn,
+            daily_profit_limit_amount: dplAmt,
+            prop_firm: this.propFirm
+          })
+        });
+      } catch (e) {
+        console.warn("Daily risk backend sync:", e);
+      }
+    }
+
     openPropFirmSetupModal() {
       if (!this.dom.modalPropFirmSetup) return;
       const pf = this.propFirm || this.getDefaultPropFirmState();
@@ -4078,15 +4149,15 @@
       const isStatic = this.dom.btnPfDdStatic.classList.contains("active");
       const ddType = isStatic ? "static" : "eod_trailing";
       const mddPct = parseFloat(this.dom.pfSliderMdd.value) || 5.0;
-      const dllEnabled = this.dom.pfChkDll.checked;
-      const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3.0;
-      const dllAmount = (this.dom.pfInputDllAmount && parseFloat(this.dom.pfInputDllAmount.value) > 0)
-        ? Math.round(parseFloat(this.dom.pfInputDllAmount.value))
-        : Math.round(cap * (dllPct / 100));
-      const dplEnabled = this.dom.pfChkDpl ? this.dom.pfChkDpl.checked : false;
-      const dplAmount = (this.dom.pfInputDplAmount && parseFloat(this.dom.pfInputDplAmount.value) > 0)
-        ? Math.round(parseFloat(this.dom.pfInputDplAmount.value))
-        : 0.0;
+      const isDirectFunded = document.getElementById("btn-pf-phase-funded")?.classList.contains("active");
+      const startPhase = isDirectFunded ? "funded" : "evaluation";
+      const consistencyPct = parseFloat(document.getElementById("pf-direct-consistency-select")?.value ?? "40") || 0.0;
+      const curPf = this.propFirm || this.getDefaultPropFirmState(cap);
+      const dllEnabled = (typeof curPf.daily_loss_limit_enabled === "boolean") ? curPf.daily_loss_limit_enabled : true;
+      const dllPct = parseFloat(curPf.daily_loss_limit_pct ?? 3.0);
+      const dllAmount = parseFloat(curPf.daily_loss_limit_amount ?? Math.round(cap * (dllPct / 100)));
+      const dplEnabled = !!curPf.daily_profit_limit_enabled;
+      const dplAmount = parseFloat(curPf.daily_profit_limit_amount ?? 0.0);
       const targetPct = parseFloat(this.dom.pfSliderTarget.value) || 6.0;
       const minDays = parseInt(this.dom.pfSliderMinDays.value) || 2;
 
@@ -4096,6 +4167,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             account_size: cap,
+            start_phase: startPhase,
+            consistency_rule_pct: consistencyPct,
             drawdown_type: ddType,
             max_drawdown_pct: mddPct,
             daily_loss_limit_enabled: dllEnabled,
@@ -4118,8 +4191,8 @@
           // Local fallback
           this.propFirm = {
             enabled: true,
-            phase: "evaluation",
-            status: "in_progress",
+            phase: startPhase,
+            status: "active",
             account_size: cap,
             current_equity: cap,
             high_water_mark: cap,
@@ -4130,7 +4203,9 @@
             initial_drawdown_floor: cap - Math.round(cap * (mddPct / 100)),
             daily_loss_limit_enabled: dllEnabled,
             daily_loss_limit_pct: dllPct,
-            daily_loss_limit_amount: Math.round(cap * (dllPct / 100)),
+            daily_loss_limit_amount: dllAmount,
+            daily_profit_limit_enabled: dplEnabled,
+            daily_profit_limit_amount: dplAmount,
             profit_target_pct: targetPct,
             profit_target_amount: Math.round(cap * (targetPct / 100)),
             min_trading_days: minDays,
@@ -4138,7 +4213,7 @@
             day_start_equity: cap,
             day_pnl: 0.0,
             day_dll_breached: false,
-            consistency_rule_pct: 40.0,
+            consistency_rule_pct: startPhase === "funded" ? consistencyPct : 40.0,
             largest_day_profit: 0.0,
             largest_day_pct: 0.0,
             consistency_satisfied: true,
@@ -4453,6 +4528,38 @@
       if (this.dom.btnPfRules) {
         this.dom.btnPfRules.addEventListener("click", () => this.openPropFirmSetupModal());
       }
+      if (this.dom.btnPfDailyRisk) {
+        this.dom.btnPfDailyRisk.addEventListener("click", () => this.openDailyRiskModal());
+      }
+
+      // Direct Funded vs Evaluation toggle inside Setup Modal
+      const btnPhaseEval = document.getElementById("btn-pf-phase-eval");
+      const btnPhaseFunded = document.getElementById("btn-pf-phase-funded");
+      const syncStartPhaseUI = (isFunded) => {
+        if (btnPhaseEval) btnPhaseEval.classList.toggle("active", !isFunded);
+        if (btnPhaseFunded) btnPhaseFunded.classList.toggle("active", isFunded);
+        document.getElementById("pf-direct-consistency-group")?.classList.toggle("hidden", !isFunded);
+        document.getElementById("pf-eval-target-group")?.classList.toggle("hidden", isFunded);
+        document.getElementById("pf-eval-mindays-group")?.classList.toggle("hidden", isFunded);
+        if (this.dom.btnSavePropFirmSetup) {
+          this.dom.btnSavePropFirmSetup.innerText = isFunded ? "Start Funded Account 🚀" : "Start Combine Challenge 🚀";
+        }
+      };
+      if (btnPhaseEval) btnPhaseEval.addEventListener("click", () => { syncStartPhaseUI(false); this.audio.playClick(); });
+      if (btnPhaseFunded) btnPhaseFunded.addEventListener("click", () => { syncStartPhaseUI(true); this.audio.playClick(); });
+
+      // Standalone Daily Risk Modal bindings
+      document.getElementById("btn-close-daily-risk")?.addEventListener("click", () => {
+        document.getElementById("modal-daily-risk")?.classList.add("hidden");
+      });
+      document.getElementById("btn-cancel-daily-risk")?.addEventListener("click", () => {
+        document.getElementById("modal-daily-risk")?.classList.add("hidden");
+      });
+      document.getElementById("dr-chk-dll")?.addEventListener("change", () => this.updateDailyRiskReadouts());
+      document.getElementById("dr-input-dll-amount")?.addEventListener("input", () => this.updateDailyRiskReadouts());
+      document.getElementById("dr-chk-dpl")?.addEventListener("change", () => this.updateDailyRiskReadouts());
+      document.getElementById("dr-input-dpl-amount")?.addEventListener("input", () => this.updateDailyRiskReadouts());
+      document.getElementById("btn-save-daily-risk")?.addEventListener("click", () => this.saveDailyRiskSettings());
       if (this.dom.btnPfPayout) {
         this.dom.btnPfPayout.addEventListener("click", () => this.openPropFirmPayoutModal());
       }
