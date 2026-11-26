@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARROW TRADE PRO 2.0 // TradingView &amp; Prop Firm Simulator</title>
+  <title>RS PROP FIRM SIMULATOR // US Futures &amp; Risk Terminal</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,25 +31,25 @@
           </svg>
         </div>
         <div class="brand-text">
-          <span class="brand-title">ARROW</span>
-          <span class="brand-badge">PRO 2.0</span>
+          <span class="brand-title">RS PROP FIRM</span>
+          <span class="brand-badge">FUTURES 2.0</span>
         </div>
       </div>
 
-      <!-- MARKET SELECTOR (INDIA vs US PROP FIRM) -->
-      <div class="segmented-control market-selector" id="market-selector">
-        <button id="btn-market-in" class="segment-btn active" data-market="IN" title="Switch to Indian Markets (NSE/BSE)">
+      <!-- MARKET SELECTOR (HIDDEN IN DEDICATED US PROP FIRM BUILD) -->
+      <div class="segmented-control market-selector hidden" id="market-selector">
+        <button id="btn-market-in" class="segment-btn" data-market="IN" title="Switch to Indian Markets (NSE/BSE)">
           <span class="segment-icon">🇮🇳</span>
           <span>India</span>
         </button>
-        <button id="btn-market-us" class="segment-btn" data-market="US" title="Switch to US Futures & Prop Firm Mode (CME MES / MNQ)">
+        <button id="btn-market-us" class="segment-btn active" data-market="US" title="Switch to US Futures & Prop Firm Mode (CME MES / MNQ)">
           <span class="segment-icon">🇺🇸</span>
           <span>US Prop Firm</span>
         </button>
       </div>
 
-      <!-- GAME MODE TOGGLE (INDIA) -->
-      <div class="segmented-control mode-selector" id="mode-selector-in">
+      <!-- GAME MODE TOGGLE (HIDDEN IN US PROP FIRM BUILD) -->
+      <div class="segmented-control mode-selector hidden" id="mode-selector-in">
         <button id="btn-mode-index" class="segment-btn active" data-mode="index">
           <span class="segment-icon">📈</span>
           <span>Index Play</span>
@@ -62,15 +62,15 @@
 
       <!-- INSTRUMENT SELECTOR -->
       <div class="instrument-picker">
-        <!-- Index Options (India) -->
-        <div id="index-pills" class="pill-group">
-          <button class="pill-btn active" data-symbol="NIFTY">Nifty 50</button>
+        <!-- Index Options (Hidden in US Prop Firm Build) -->
+        <div id="index-pills" class="pill-group hidden">
+          <button class="pill-btn" data-symbol="NIFTY">Nifty 50</button>
           <button class="pill-btn" data-symbol="SENSEX">BSE Sensex</button>
           <button class="pill-btn" data-symbol="BANKNIFTY">Bank Nifty</button>
         </div>
 
         <!-- US CME Futures (US Mode) -->
-        <div id="us-futures-pills" class="pill-group hidden">
+        <div id="us-futures-pills" class="pill-group">
           <button class="pill-btn active" data-symbol="MES" title="Micro E-mini S&P 500 ($5/pt, $50 margin)">MES (Micro S&amp;P)</button>
           <button class="pill-btn" data-symbol="MNQ" title="Micro E-mini Nasdaq-100 ($2/pt, $50 margin)">MNQ (Micro Nasdaq)</button>
           <button class="pill-btn" data-symbol="ES" title="E-mini S&P 500 ($50/pt, $500 margin)">ES (E-mini S&amp;P)</button>

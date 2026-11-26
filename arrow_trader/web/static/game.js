@@ -244,10 +244,10 @@
     constructor() {
       this.audio = new AudioEngine();
 
-      // State
+      // State (Dedicated US Prop Firm Futures Simulator)
       this.config = null;
-      this.currentMode = "index"; // 'index' or 'stock'
-      this.currentSymbol = "NIFTY";
+      this.currentMode = "us_futures";
+      this.currentSymbol = "MES";
       this.session = null;
       this.currentBarIndex = 0;
       this.isPlaying = false;
@@ -255,15 +255,15 @@
       this.timerId = null;
       this.blindMode = false;
 
-      // Multi-Market & Account state (India ₹10L vs US Prop Firm $50k)
-      this.currentMarket = "IN"; // 'IN' or 'US'
+      // Account state ($50k Prop Firm default)
+      this.currentMarket = "US";
       this.inrStartingCapital = 1000000.0;
       this.inrCurrentCapital = 1000000.0;
       this.usdStartingCapital = 50000.0;
       this.usdCurrentCapital = 50000.0;
-      this.startingCapital = 1000000.0;
-      this.currentCapital = 1000000.0;
-      this.dayStartCapital = 1000000.0;
+      this.startingCapital = 50000.0;
+      this.currentCapital = 50000.0;
+      this.dayStartCapital = 50000.0;
       this.dayPnL = 0.0;
       this.totalTrades = 0;
       this.wins = 0;
@@ -276,7 +276,7 @@
       this.propFirm = this.getDefaultPropFirmState();
 
       // Trading Order Desk state
-      this.instrumentType = "options"; // 'options' or 'futures'
+      this.instrumentType = "futures"; // Dedicated US Futures Simulator
       this.selectedFutDirection = "LONG"; // 'LONG' or 'SHORT'
       this.selectedFutSLPct = 0.5; // 0.5% default SL for futures
       this.selectedFutTargetPct = 1.0; // 1.0% default Target for futures
@@ -784,6 +784,12 @@
           if (s.inrCurrentCapital) this.inrCurrentCapital = parseFloat(s.inrCurrentCapital) || 1000000.0;
           if (s.usdStartingCapital) this.usdStartingCapital = parseFloat(s.usdStartingCapital) || 50000.0;
           if (s.usdCurrentCapital) this.usdCurrentCapital = parseFloat(s.usdCurrentCapital) || 50000.0;
+          // Enforce dedicated US Prop Firm mode on rs-propfirm-simulator
+          this.currentMarket = "US";
+          this.currentMode = "us_futures";
+          this.instrumentType = "futures";
+          this.startingCapital = this.usdStartingCapital;
+          this.currentCapital = this.usdCurrentCapital;
           if (s.currentMarket) this.currentMarket = s.currentMarket;
 
           if (this.currentMarket === "US") {
