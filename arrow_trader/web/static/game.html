@@ -14,6 +14,7 @@
   <script src="/static/three.min.js"></script>
   <script src="/static/three_gamification.js"></script>
   <script src="/static/chart_engine_v2.js"></script>
+  <script src="/static/auth_profile.js"></script>
 </head>
 <body class="theme-obsidian">
   <!-- THREE.JS 3D AMBIENT DEPTH & CELEBRATION OVERLAY -->
@@ -148,6 +149,12 @@
           </div>
         </div>
       </div>
+
+      <!-- User Profile & Tradeify Calendar -->
+      <button id="btn-user-profile" class="user-profile-pill" title="Trader Profile, Performance Calendar &amp; Past Trades">
+        <span>👤</span>
+        <span id="header-username" class="font-mono">Sign In</span>
+      </button>
 
       <!-- Audio Mute Toggle -->
       <button id="btn-audio-toggle" class="icon-btn active" title="Audio Effects (Synthesizer Sound)">
@@ -1325,6 +1332,147 @@
       <div class="settings-actions">
         <button id="btn-confirm-payout" class="btn-primary glow-emerald">Confirm Payout Request 💸</button>
         <button id="btn-cancel-payout" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 9: SIGN IN / SIGN UP AUTHENTICATION -->
+  <div id="modal-auth" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal auth-modal-card">
+      <div class="pf-modal-header">
+        <div class="pf-modal-icon">🔐</div>
+        <div>
+          <h2 class="modal-title">TRADER ACCESS PORTAL</h2>
+          <p class="modal-subtitle">Sign in or create an account to track trades, analytics &amp; risk discipline</p>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="auth-tab-signin" class="auth-tab-btn active" type="button">Sign In</button>
+        <button id="auth-tab-signup" class="auth-tab-btn" type="button">Create Account</button>
+      </div>
+
+      <div id="auth-error-msg" class="auth-error-banner hidden"></div>
+
+      <form id="auth-form-signin" class="auth-form">
+        <div class="pf-field-group">
+          <label class="pf-label">USERNAME OR EMAIL</label>
+          <input type="text" id="signin-identifier" class="cyber-input" placeholder="trader@example.com or username" required>
+        </div>
+        <div class="pf-field-group">
+          <label class="pf-label">PASSWORD</label>
+          <input type="password" id="signin-password" class="cyber-input" placeholder="••••••••" required>
+        </div>
+        <button type="submit" id="btn-auth-signin-submit" class="btn-primary glow-play" style="width:100%; margin-top:8px;">Sign In to Terminal →</button>
+      </form>
+
+      <form id="auth-form-signup" class="auth-form hidden">
+        <div class="pf-field-group">
+          <label class="pf-label">FULL NAME</label>
+          <input type="text" id="signup-fullname" class="cyber-input" placeholder="Rahul Sharma" required>
+        </div>
+        <div class="pf-field-group">
+          <label class="pf-label">USERNAME</label>
+          <input type="text" id="signup-username" class="cyber-input" placeholder="rahul_trader" required>
+        </div>
+        <div class="pf-field-group">
+          <label class="pf-label">EMAIL ADDRESS</label>
+          <input type="email" id="signup-email" class="cyber-input" placeholder="rahul@example.com" required>
+        </div>
+        <div class="pf-field-group">
+          <label class="pf-label">PASSWORD (MIN 6 CHARS)</label>
+          <input type="password" id="signup-password" class="cyber-input" placeholder="••••••••" minlength="6" required>
+        </div>
+        <button type="submit" id="btn-auth-signup-submit" class="btn-primary glow-emerald" style="width:100%; margin-top:8px;">Create Trader Account 🚀</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 10: TRADEIFY-STYLE TRADER PROFILE & PERFORMANCE CALENDAR -->
+  <div id="modal-user-profile" class="cyber-modal-overlay hidden">
+    <div class="cyber-modal profile-modal-card">
+      <div class="modal-close-btn" id="btn-close-profile">✕</div>
+
+      <div class="profile-top-bar">
+        <div class="profile-identity">
+          <div class="profile-avatar">👤</div>
+          <div>
+            <h2 id="profile-fullname" class="modal-title">Trader Profile</h2>
+            <p id="profile-handle" class="modal-subtitle">@trader</p>
+          </div>
+        </div>
+        <button id="btn-profile-logout" class="btn-secondary sm-btn">Sign Out</button>
+      </div>
+
+      <!-- Key Performance Stats -->
+      <div class="profile-stats-grid">
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">NET P&amp;L</span>
+          <span id="prof-net-pnl" class="prof-stat-val font-mono">0.00</span>
+        </div>
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">WIN RATE</span>
+          <span id="prof-win-rate" class="prof-stat-val font-mono">0.0%</span>
+        </div>
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">PROFIT FACTOR</span>
+          <span id="prof-profit-factor" class="prof-stat-val font-mono">0.0</span>
+        </div>
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">TOTAL TRADES</span>
+          <span id="prof-total-trades" class="prof-stat-val font-mono">0</span>
+        </div>
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">BEST DAY</span>
+          <span id="prof-best-day" class="prof-stat-val font-mono positive">0.00</span>
+        </div>
+        <div class="prof-stat-card">
+          <span class="prof-stat-label">WORST DAY</span>
+          <span id="prof-worst-day" class="prof-stat-val font-mono negative">0.00</span>
+        </div>
+      </div>
+
+      <!-- Tradeify Monthly Calendar -->
+      <div class="calendar-section">
+        <div class="calendar-header">
+          <h3 class="cal-title">📅 PERFORMANCE CALENDAR</h3>
+          <div class="cal-nav">
+            <button id="cal-prev-month" class="btn-micro-chart">◀</button>
+            <span id="cal-month-label" class="font-mono">November 2026</span>
+            <button id="cal-next-month" class="btn-micro-chart">▶</button>
+          </div>
+        </div>
+        <div class="cal-weekdays font-mono">
+          <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+        </div>
+        <div id="tradeify-calendar-grid" class="tradeify-calendar-grid"></div>
+      </div>
+
+      <!-- Past Trades History -->
+      <div class="profile-trades-section">
+        <div class="profile-trades-hdr">
+          <h3 class="cal-title">📜 PAST TRADES LEDGER</h3>
+          <button id="btn-clear-date-filter" class="btn-micro-chart hidden">Show All Dates ✕</button>
+        </div>
+        <div class="profile-trades-table-wrap">
+          <table class="journal-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Qty</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>Reason</th>
+                <th>Net P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody id="profile-trades-tbody">
+              <tr class="empty-row"><td colspan="8">No recorded trades yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

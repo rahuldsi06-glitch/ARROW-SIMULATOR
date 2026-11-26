@@ -371,6 +371,8 @@
       this.initChart();
       this.bindEvents();
       this.loadSavedState();
+      this.authManager = window.AuthProfileManager ? new window.AuthProfileManager(this) : null;
+      if (this.authManager) this.authManager.init();
       await this.loadConfig();
       this.syncMarketUI();
       await this.startNewSession(this.currentMarket === "US" ? "MES" : this.currentSymbol);
@@ -931,11 +933,15 @@
       this.dayPnL = 0.0;
       this.tradeJournal = [];
 
-      // Reset intraday DLL state for new day in US mode (stats like Account, Target, Floor are preserved!)
+      // Reset intraday DLL state for new day in US mode (re-enables trading like Tradovate)
       if (this.currentMarket === "US" && this.propFirm) {
         this.propFirm.day_dll_breached = false;
         this.propFirm.day_start_equity = this.currentCapital;
         if (this.dom.propFirmDllBanner) this.dom.propFirmDllBanner.classList.add("hidden");
+        if (this.dom.btnExecuteOrder) {
+          this.dom.btnExecuteOrder.disabled = false;
+          this.dom.btnExecuteOrder.classList.remove("risk-locked");
+        }
       }
 
       this.renderJournal();
@@ -2599,12 +2605,31 @@
     }
 
     async syncTradeToBackend(trade, pos) {
+      const sessionDate = this.session ? (this.session.date || "") : "";
+      if (this.authManager) {
+        this.authManager.recordLocalTrade({
+          trade_id: trade.id,
+          session_date: sessionDate,
+          symbol: pos.symbol,
+          market: pos.market || this.currentMarket,
+          instrument_type: pos.instrumentType || "options",
+          side: pos.direction,
+          qty: pos.qty,
+          entry_price: pos.entryPrice,
+          exit_price: trade.sellPrice,
+          pnl: trade.pnl,
+          pnl_pct: trade.roi,
+          exit_reason: trade.reason
+        });
+      }
       try {
+        const authHdrs = this.authManager ? this.authManager.getAuthHeaders() : {};
         await fetch("/api/game/trade", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHdrs },
           body: JSON.stringify({
             trade_id: trade.id,
+            session_date: sessionDate,
             symbol: pos.symbol,
             market: pos.market || this.currentMarket,
             currency: pos.currency || (this.currentMarket === "US" ? "USD" : "INR"),
@@ -3662,6 +3687,13 @@
           this.closePosition(this.activePosition.currentPrice, "DLL_BREACH_AUTO_EXIT", this.session ? this.session.candles[this.currentBarIndex] : null);
         }
         pf.day_dll_breached = true;
+        if (this.dom.btnExecuteOrder) {
+          this.dom.btnExecuteOrder.disabled = true;
+          this.dom.btnExecuteOrder.classList.add("risk-locked");
+        }
+        if (this.authManager) {
+          this.authManager.trackEvent("DLL_LOCKOUT", { day_pnl: todayPnl, limit: pf.daily_loss_limit_amount });
+        }
         if (this.dom.propFirmDllBanner) {
           if (this.dom.dllBannerSub) {
             this.dom.dllBannerSub.innerHTML = `Today's loss reached <b>-${this.formatCurrency(Math.abs(todayPnl))}</b> (Limit: -${this.formatCurrency(pf.daily_loss_limit_amount)}). Trading for this session is locked to protect your account. Click <b>"Advance to Next Day"</b> to trade the next market session.`;

@@ -849,6 +849,73 @@ class TestFastAPIRoutes(unittest.TestCase):
             self.assertGreaterEqual(lvls["asia_high"], lvls["asia_low"])
             self.assertGreaterEqual(lvls["london_high"], lvls["london_low"])
 
+    def test_auth_signup_login_profile_calendar_and_data_until_yesterday(self):
+        from datetime import datetime, timedelta
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        # 1. Verify trading dates include up to yesterday (or latest weekday <= yesterday)
+        us_dates = self.client.app.router if False else None
+        from arrow_trader.game.simulator_service import SimulatorService
+        sim = SimulatorService()
+        us_list = sim.get_us_trading_dates()
+        in_list = sim.get_trading_dates()
+        self.assertTrue(len(us_list) > 200)
+        self.assertTrue(len(in_list) > 100)
+        self.assertGreaterEqual(us_list[-1], "2026-11-25")
+        self.assertGreaterEqual(in_list[-1], "2026-11-25")
+
+        # 2. Signup unique user
+        import uuid
+        uname = f"trader_{uuid.uuid4().hex[:6]}"
+        s_res = self.client.post("/api/game/auth/signup", json={
+            "username": uname,
+            "email": f"{uname}@example.com",
+            "password": "password123",
+            "full_name": "Test Trader"
+        })
+        self.assertEqual(s_res.status_code, 200)
+        token = s_res.json()["token"]
+
+        # 3. Login
+        l_res = self.client.post("/api/game/auth/login", json={
+            "identifier": uname,
+            "password": "password123"
+        })
+        self.assertEqual(l_res.status_code, 200)
+        self.assertEqual(l_res.json()["user"]["username"], uname)
+
+        # 4. Record trade with Bearer token and verify Tradeify calendar/profile
+        t_res = self.client.post("/api/game/trade", headers={"Authorization": f"Bearer {token}"}, json={
+            "trade_id": "t-cal-1",
+            "session_date": yesterday,
+            "symbol": "MES",
+            "market": "US",
+            "currency": "USD",
+            "instrument_type": "futures",
+            "option_type": "LONG",
+            "lot_size": 1,
+            "lots": 2,
+            "quantity": 2,
+            "entry_bar": 1,
+            "exit_bar": 5,
+            "entry_time": "09:35",
+            "exit_time": "09:55",
+            "entry_price": 5900.0,
+            "exit_price": 5910.0,
+            "pnl": 100.0,
+            "pnl_pct": 100.0,
+            "exit_reason": "TARGET_HIT"
+        })
+        self.assertEqual(t_res.status_code, 200)
+
+        p_res = self.client.get("/api/game/auth/profile", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(p_res.status_code, 200)
+        pdata = p_res.json()
+        self.assertEqual(pdata["stats"]["total_trades"], 1)
+        self.assertEqual(pdata["stats"]["net_pnl"], 100.0)
+        self.assertIn(yesterday, pdata["calendar"])
+        self.assertEqual(pdata["calendar"][yesterday]["pnl"], 100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

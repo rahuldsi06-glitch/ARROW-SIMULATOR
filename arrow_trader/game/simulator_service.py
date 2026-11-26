@@ -90,11 +90,14 @@ class SimulatorService:
         Retrieves list of valid historical trading dates (YYYY-MM-DD).
         Prioritizes locally saved trading dates.
         """
+        yesterday = (datetime.now() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_str = yesterday.strftime("%Y-%m-%d")
+
         if not force_refresh and DATES_CACHE_FILE.exists():
             try:
                 with open(DATES_CACHE_FILE, "r") as f:
                     data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
+                    if isinstance(data, list) and len(data) > 50 and data[-1] >= yesterday_str:
                         self._trading_dates = data
                         return self._trading_dates
             except Exception:
@@ -107,28 +110,31 @@ class SimulatorService:
             if len(parts) >= 2:
                 local_dates.add(parts[1])
 
-        if local_dates:
-            self._trading_dates = sorted(list(local_dates))
-            try:
-                with open(DATES_CACHE_FILE, "w") as f:
-                    json.dump(self._trading_dates, f, indent=2)
-            except Exception:
-                pass
-            return self._trading_dates
+        # Build comprehensive Indian market weekdays up to yesterday (merged with local cache)
+        yesterday = (datetime.now() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        in_holidays = {
+            "2025-01-26", "2025-02-26", "2025-03-14", "2025-03-31", "2025-04-10", "2025-04-14",
+            "2025-04-18", "2025-05-01", "2025-08-15", "2025-08-27", "2025-10-02", "2025-10-21",
+            "2025-10-22", "2025-11-05", "2025-12-25",
+            "2026-01-26", "2026-03-03", "2026-03-21", "2026-03-31", "2026-04-03", "2026-04-14",
+            "2026-05-01", "2026-05-28", "2026-06-26", "2026-09-14", "2026-10-02", "2026-10-20",
+            "2026-11-08", "2026-12-25",
+        }
+        all_dates = set(local_dates)
+        curr = datetime(2026, 1, 1)
+        while curr <= yesterday:
+            if curr.weekday() < 5:
+                d_str = curr.strftime("%Y-%m-%d")
+                if d_str not in in_holidays:
+                    all_dates.add(d_str)
+            curr += timedelta(days=1)
 
-        # Fallback date pool
-        fallback_dates = [
-            "2026-01-12", "2026-01-19", "2026-02-04", "2026-02-18", "2026-03-05",
-            "2026-03-23", "2026-04-08", "2026-04-22", "2026-05-11", "2026-05-27",
-            "2026-06-15", "2026-06-29", "2026-07-14", "2026-07-28", "2026-08-12",
-            "2026-08-26", "2026-09-09", "2026-09-23", "2026-10-01", "2026-10-07"
-        ]
-        self._trading_dates = fallback_dates
+        self._trading_dates = sorted(list(all_dates))
         return self._trading_dates
 
     def get_us_trading_dates(self) -> List[str]:
         """
-        Returns a rich list of valid US market weekdays (Mon-Fri) across 2025-2026,
+        Returns a rich list of valid US market weekdays (Mon-Fri) from 2025-01-06 up to yesterday,
         excluding standard CME/NYSE trading holidays.
         """
         holidays = {
@@ -139,7 +145,7 @@ class SimulatorService:
         }
         dates = []
         start_dt = datetime(2025, 1, 6)
-        end_dt = datetime(2026, 10, 23)
+        end_dt = (datetime.now() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         curr = start_dt
         while curr <= end_dt:
             if curr.weekday() < 5:  # Monday to Friday
@@ -545,15 +551,14 @@ class SimulatorService:
                 us_dates = self.get_us_trading_dates()
                 chosen_date = random.choice(us_dates) if us_dates else "2026-09-15"
         else:
-            # Prioritize locally saved dates for this symbol so replay is instantaneous
-            local_days = self.get_available_local_days(symbol)
-            if date and (date in local_days or len(date) == 10):
+            # Use full Indian trading calendar up to yesterday (local cache used if present, otherwise synthesized)
+            valid_dates = self.get_trading_dates()
+            if date and len(date) == 10:
                 chosen_date = date
-            elif local_days:
-                chosen_date = random.choice(local_days)
+            elif valid_dates:
+                chosen_date = random.choice(valid_dates)
             else:
-                valid_dates = self.get_trading_dates()
-                chosen_date = random.choice(valid_dates) if valid_dates else "2026-03-23"
+                chosen_date = "2026-11-25"
 
         # Fetch candles (with guaranteed local fallback)
         candles = self.fetch_day_candles(symbol, chosen_date)

@@ -1,9 +1,10 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
 from .simulator_service import SimulatorService
+from .auth_service import AuthService
 from .instruments import (
     INSTRUMENTS,
     INDEX_SYMBOLS,
@@ -15,6 +16,7 @@ from .options_math import black_scholes_price, calculate_time_to_expiry, estimat
 
 router = APIRouter(prefix="/api/game", tags=["game"])
 simulator = SimulatorService()
+auth_service = AuthService()
 
 
 class SessionCreateRequest(BaseModel):
@@ -55,6 +57,24 @@ class SaveTradeRequest(BaseModel):
     pnl: float
     pnl_pct: float
     exit_reason: str  # 'TARGET_HIT', 'STOP_LOSS_HIT', 'MANUAL_EXIT', 'EOD_SQUAREOFF'
+    session_date: Optional[str] = None
+
+
+class SignupRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: Optional[str] = ""
+
+
+class LoginRequest(BaseModel):
+    identifier: str
+    password: str
+
+
+class BehaviorEventRequest(BaseModel):
+    event_type: str
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class ResetAccountRequest(BaseModel):
@@ -140,10 +160,16 @@ def get_live_option_chain(req: OptionChainRequest) -> Dict[str, Any]:
 
 
 @router.post("/trade")
-def record_completed_trade(req: SaveTradeRequest) -> Dict[str, Any]:
+def record_completed_trade(req: SaveTradeRequest, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     """Records a completed trade, awards XP, updates player statistics & balance."""
     state = simulator.load_game_state()
     trade_data = req.model_dump() if hasattr(req, "model_dump") else req.dict()
+    user = auth_service.verify_token(authorization)
+    if user:
+        try:
+            auth_service.record_trade(user["id"], trade_data)
+        except Exception:
+            pass
     
     is_us = req.market == "US" or req.currency == "USD"
     if is_us:
@@ -329,3 +355,52 @@ def reset_propfirm() -> Dict[str, Any]:
         "message": "Prop firm challenge reset to default $50,000 evaluation.",
         "prop_firm": pf
     }
+
+
+@router.post("/auth/signup")
+def auth_signup(req: SignupRequest) -> Dict[str, Any]:
+    """Creates a new trader account and returns signed session token."""
+    try:
+        res = auth_service.signup(req.username, req.email, req.password, req.full_name or "")
+        return {"status": "success", **res}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/auth/login")
+def auth_login(req: LoginRequest) -> Dict[str, Any]:
+    """Authenticates an existing trader account."""
+    try:
+        res = auth_service.login(req.identifier, req.password)
+        return {"status": "success", **res}
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.get("/auth/me")
+def auth_me(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Returns currently signed-in user from bearer token."""
+    user = auth_service.verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"status": "success", "user": user}
+
+
+@router.get("/auth/profile")
+def auth_profile(market: Optional[str] = None, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Returns Tradeify-style trader profile, P&L calendar, stats, and past trades."""
+    user = auth_service.verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    profile = auth_service.get_profile(user["id"], market_filter=market)
+    return {"status": "success", "user": user, **profile}
+
+
+@router.post("/auth/event")
+def auth_record_event(req: BehaviorEventRequest, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Tracks user behavior events (risk lockouts, prop passes, payouts, etc.)."""
+    user = auth_service.verify_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    auth_service.record_event(user["id"], req.event_type, req.metadata)
+    return {"status": "success"}
