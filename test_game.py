@@ -168,10 +168,11 @@ class TestFastAPIRoutes(unittest.TestCase):
     def test_game_html_route(self):
         res = self.client.get("/game")
         self.assertEqual(res.status_code, 200)
-        self.assertIn("ARROW TRADE PRO 2.0", res.text)
+        self.assertIn("RS OPTION SIMULATOR", res.text)
         self.assertIn("klinecharts.min.js", res.text)
         self.assertIn("three.min.js", res.text)
         self.assertIn("chart_engine_v2.js", res.text)
+        self.assertIn("auth_profile.js", res.text)
         self.assertIn("htf-chart", res.text)
         self.assertIn("toggle-lvl-pdh", res.text)
 

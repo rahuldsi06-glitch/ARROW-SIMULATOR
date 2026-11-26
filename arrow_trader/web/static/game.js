@@ -782,6 +782,10 @@
           const s = JSON.parse(saved);
           if (s.inrStartingCapital) this.inrStartingCapital = parseFloat(s.inrStartingCapital) || 1000000.0;
           if (s.inrCurrentCapital) this.inrCurrentCapital = parseFloat(s.inrCurrentCapital) || 1000000.0;
+          // Enforce dedicated Indian Options mode on rs-option-simulator
+          this.currentMarket = "IN";
+          this.startingCapital = this.inrStartingCapital;
+          this.currentCapital = this.inrCurrentCapital;
           if (s.usdStartingCapital) this.usdStartingCapital = parseFloat(s.usdStartingCapital) || 50000.0;
           if (s.usdCurrentCapital) this.usdCurrentCapital = parseFloat(s.usdCurrentCapital) || 50000.0;
           if (s.currentMarket) this.currentMarket = s.currentMarket;
