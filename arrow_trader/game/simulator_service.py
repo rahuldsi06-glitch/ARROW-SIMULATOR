@@ -694,11 +694,17 @@ class SimulatorService:
         dll_pct: Optional[float] = 3.0,
         target_pct: float = 6.0,
         min_days: int = 2,
-        daily_loss_limit_enabled: bool = True
+        daily_loss_limit_enabled: bool = True,
+        daily_loss_limit_amount: Optional[float] = None,
+        daily_profit_limit_enabled: bool = False,
+        daily_profit_limit_amount: float = 0.0
     ) -> Dict[str, Any]:
         """Returns standard evaluation configuration and live tracking state for Prop Firm mode."""
         max_dd_amount = round(account_size * (max_dd_pct / 100.0), 2)
-        dll_amount = round(account_size * (dll_pct / 100.0), 2) if (daily_loss_limit_enabled and dll_pct and dll_pct > 0) else 0.0
+        if daily_loss_limit_enabled and daily_loss_limit_amount is not None and daily_loss_limit_amount > 0:
+            dll_amount = round(float(daily_loss_limit_amount), 2)
+        else:
+            dll_amount = round(account_size * (dll_pct / 100.0), 2) if (daily_loss_limit_enabled and dll_pct and dll_pct > 0) else 0.0
         profit_target_amount = round(account_size * (target_pct / 100.0), 2)
         floor = round(account_size - max_dd_amount, 2)
 
@@ -714,6 +720,8 @@ class SimulatorService:
             "daily_loss_limit_enabled": daily_loss_limit_enabled,
             "daily_loss_limit_pct": dll_pct or 0.0,
             "daily_loss_limit_amount": dll_amount,
+            "daily_profit_limit_enabled": daily_profit_limit_enabled,
+            "daily_profit_limit_amount": round(float(daily_profit_limit_amount or 0.0), 2),
             "profit_target_pct": target_pct,
             "profit_target_amount": profit_target_amount,
             "min_trading_days": min_days,
@@ -786,7 +794,10 @@ class SimulatorService:
         dll_pct: Optional[float] = 3.0,
         target_pct: float = 6.0,
         min_days: int = 2,
-        daily_loss_limit_enabled: bool = True
+        daily_loss_limit_enabled: bool = True,
+        daily_loss_limit_amount: Optional[float] = None,
+        daily_profit_limit_enabled: bool = False,
+        daily_profit_limit_amount: float = 0.0
     ) -> Dict[str, Any]:
         """Configures or restarts a Prop Firm Evaluation Challenge."""
         state = self.load_game_state()
@@ -797,7 +808,10 @@ class SimulatorService:
             dll_pct=dll_pct,
             target_pct=target_pct,
             min_days=min_days,
-            daily_loss_limit_enabled=daily_loss_limit_enabled
+            daily_loss_limit_enabled=daily_loss_limit_enabled,
+            daily_loss_limit_amount=daily_loss_limit_amount,
+            daily_profit_limit_enabled=daily_profit_limit_enabled,
+            daily_profit_limit_amount=daily_profit_limit_amount
         )
         state["usd_starting_balance"] = account_size
         state["usd_current_balance"] = account_size

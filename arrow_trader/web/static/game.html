@@ -1111,21 +1111,43 @@
         </div>
       </div>
 
-      <!-- Daily Loss Limit (DLL) Slider (2% - 5%) -->
+      <!-- Daily Loss Limit (DLL) Slider + Custom $ Input -->
       <div class="pf-field-group">
         <div class="pf-slider-header">
           <div class="pf-toggle-wrapper">
             <input type="checkbox" id="pf-chk-dll" checked>
-            <label for="pf-chk-dll" class="pf-label" style="margin: 0; cursor: pointer;">DAILY LOSS LIMIT (DLL):</label>
+            <label for="pf-chk-dll" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX LOSS (DLL):</label>
           </div>
           <span class="pf-slider-readout font-mono" id="pf-dll-readout">3.0% ($1,500)</span>
         </div>
-        <input type="range" id="pf-slider-dll" min="2" max="5" step="0.5" value="3" class="cyber-slider">
-        <div class="pf-slider-limits">
-          <span>2% ($1,000)</span>
-          <span id="pf-dll-desc">Soft-locks trading for the day if hit</span>
-          <span>5% ($2,500)</span>
+        <input type="range" id="pf-slider-dll" min="1" max="5" step="0.5" value="3" class="cyber-slider">
+        <div class="pf-custom-input-row" style="margin-top: 6px;">
+          <span class="sub-label">Custom Daily Max Loss ($):</span>
+          <input type="number" id="pf-input-dll-amount" value="1500" min="50" step="50" class="cyber-input font-mono pf-num-input">
         </div>
+        <div class="pf-slider-limits">
+          <span>1%</span>
+          <span id="pf-dll-desc">Locks trading for the day if hit (Tradovate style)</span>
+          <span>5%</span>
+        </div>
+      </div>
+
+      <!-- Daily Max Profit Cap (Consistency Rule Guard) -->
+      <div class="pf-field-group">
+        <div class="pf-slider-header">
+          <div class="pf-toggle-wrapper">
+            <input type="checkbox" id="pf-chk-dpl">
+            <label for="pf-chk-dpl" class="pf-label" style="margin: 0; cursor: pointer;">DAILY MAX PROFIT CAP (CONSISTENCY):</label>
+          </div>
+          <span class="pf-slider-readout font-mono glow-green" id="pf-dpl-readout">Disabled</span>
+        </div>
+        <div class="pf-custom-input-row" style="margin-top: 6px;">
+          <span class="sub-label">Daily Max Profit ($):</span>
+          <input type="number" id="pf-input-dpl-amount" value="1200" min="50" step="50" class="cyber-input font-mono pf-num-input">
+        </div>
+        <p class="pf-help-text" style="margin-top: 4px;">
+          Locks in profits &amp; stops trading for the day once reached so you never violate your Consistency Rule.
+        </p>
       </div>
 
       <!-- Profit Target Slider (4% - 12%) -->

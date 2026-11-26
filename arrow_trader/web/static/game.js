@@ -617,7 +617,11 @@
       this.dom.pfMddFloorPreview = document.getElementById("pf-mdd-floor-preview");
       this.dom.pfChkDll = document.getElementById("pf-chk-dll");
       this.dom.pfSliderDll = document.getElementById("pf-slider-dll");
+      this.dom.pfInputDllAmount = document.getElementById("pf-input-dll-amount");
       this.dom.pfDllReadout = document.getElementById("pf-dll-readout");
+      this.dom.pfChkDpl = document.getElementById("pf-chk-dpl");
+      this.dom.pfInputDplAmount = document.getElementById("pf-input-dpl-amount");
+      this.dom.pfDplReadout = document.getElementById("pf-dpl-readout");
       this.dom.pfSliderTarget = document.getElementById("pf-slider-target");
       this.dom.pfTargetReadout = document.getElementById("pf-target-readout");
       this.dom.pfTargetGoalPreview = document.getElementById("pf-target-goal-preview");
@@ -3690,11 +3694,11 @@
       }
 
       // 2. Daily Loss Limit Breach (Soft Stop / Locks Day)
-      if (pf.daily_loss_limit_enabled && todayPnl <= -pf.daily_loss_limit_amount) {
+      if (pf.daily_loss_limit_enabled && pf.daily_loss_limit_amount > 0 && todayPnl <= -pf.daily_loss_limit_amount && !pf.day_dll_breached) {
+        pf.day_dll_breached = true;
         if (this.activePosition) {
           this.closePosition(this.activePosition.currentPrice, "DLL_BREACH_AUTO_EXIT", this.session ? this.session.candles[this.currentBarIndex] : null);
         }
-        pf.day_dll_breached = true;
         if (this.dom.btnExecuteOrder) {
           this.dom.btnExecuteOrder.disabled = true;
           this.dom.btnExecuteOrder.classList.add("risk-locked");
@@ -3705,6 +3709,54 @@
         if (this.dom.propFirmDllBanner) {
           if (this.dom.dllBannerSub) {
             this.dom.dllBannerSub.innerHTML = `Today's loss reached <b>-${this.formatCurrency(Math.abs(todayPnl))}</b> (Limit: -${this.formatCurrency(pf.daily_loss_limit_amount)}). Trading for this session is locked to protect your account. Click <b>"Advance to Next Day"</b> to trade the next market session.`;
+          }
+          this.dom.propFirmDllBanner.classList.remove("hidden");
+        }
+        this.renderPropFirmHUD(equity, todayPnl);
+        this.saveState();
+        return true;
+      }
+
+      // 3. Instant Evaluation -> Funded Promotion the moment Profit Target is reached intraday
+      if (pf.phase === "evaluation" && (pf.status === "active" || pf.status === "in_progress")) {
+        const totalEvalPnl = Math.round((equity - pf.account_size) * 100) / 100;
+        const targetAmt = parseFloat(pf.profit_target_amount) || Math.round(pf.account_size * ((pf.profit_target_pct || 6.0) / 100));
+        if (totalEvalPnl >= targetAmt) {
+          pf.status = "passed";
+          pf.phase = "passed";
+          if (this.activePosition) {
+            this.closePosition(this.activePosition.currentPrice, "TARGET_EVAL_PASSED", this.session ? this.session.candles[this.currentBarIndex] : null);
+          }
+          const finalEq = this.currentCapital;
+          const finalPnl = Math.round((finalEq - pf.account_size) * 100) / 100;
+          pf.current_equity = finalEq;
+          pf.total_pnl = finalPnl;
+          pf.pass_date = this.session ? (this.session.date || "") : "";
+          this.renderPropFirmHUD(finalEq, this.dayPnL);
+          this.saveState();
+          this.showPropFirmPassedModal();
+          if (this.threeEngine) this.threeEngine.triggerCelebration("prop_pass");
+          this.audio.playTargetWin();
+          if (this.authManager) {
+            this.authManager.trackEvent("PROP_PASS", { account_size: pf.account_size, profit: finalPnl });
+          }
+          return true;
+        }
+      }
+
+      // 4. Daily Max Profit Cap (Consistency Guard - locks trading for rest of day)
+      if (pf.daily_profit_limit_enabled && pf.daily_profit_limit_amount > 0 && todayPnl >= pf.daily_profit_limit_amount && !pf.day_dll_breached) {
+        pf.day_dll_breached = true;
+        if (this.activePosition) {
+          this.closePosition(this.activePosition.currentPrice, "DPL_CONSISTENCY_LOCK", this.session ? this.session.candles[this.currentBarIndex] : null);
+        }
+        if (this.dom.btnExecuteOrder) {
+          this.dom.btnExecuteOrder.disabled = true;
+          this.dom.btnExecuteOrder.classList.add("risk-locked");
+        }
+        if (this.dom.propFirmDllBanner) {
+          if (this.dom.dllBannerSub) {
+            this.dom.dllBannerSub.innerHTML = `✅ <b>DAILY MAX PROFIT CAP REACHED (+${this.formatCurrency(todayPnl)} / Cap: +${this.formatCurrency(pf.daily_profit_limit_amount)})</b>. Profits locked and trading paused for today to protect your Consistency Rule. Click <b>"Advance to Next Day"</b> to continue.`;
           }
           this.dom.propFirmDllBanner.classList.remove("hidden");
         }
@@ -3873,7 +3925,10 @@
       if (this.dom.pfInputCustomCapital) this.dom.pfInputCustomCapital.value = pf.account_size;
       if (this.dom.pfSliderMdd) this.dom.pfSliderMdd.value = pf.max_drawdown_pct;
       if (this.dom.pfSliderDll) this.dom.pfSliderDll.value = pf.daily_loss_limit_pct;
+      if (this.dom.pfInputDllAmount) this.dom.pfInputDllAmount.value = pf.daily_loss_limit_amount || Math.round(pf.account_size * ((pf.daily_loss_limit_pct || 3.0) / 100));
       if (this.dom.pfChkDll) this.dom.pfChkDll.checked = pf.daily_loss_limit_enabled;
+      if (this.dom.pfChkDpl) this.dom.pfChkDpl.checked = !!pf.daily_profit_limit_enabled;
+      if (this.dom.pfInputDplAmount) this.dom.pfInputDplAmount.value = pf.daily_profit_limit_amount || Math.round(pf.account_size * 0.024);
       if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = pf.profit_target_pct;
       if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = pf.min_trading_days;
 
@@ -3953,9 +4008,19 @@
 
       const dllEnabled = this.dom.pfChkDll.checked;
       const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3;
-      const dllAmount = Math.round(cap * (dllPct / 100));
+      const dllAmount = (this.dom.pfInputDllAmount && parseFloat(this.dom.pfInputDllAmount.value) > 0)
+        ? Math.round(parseFloat(this.dom.pfInputDllAmount.value))
+        : Math.round(cap * (dllPct / 100));
       if (this.dom.pfDllReadout) {
-        this.dom.pfDllReadout.innerText = dllEnabled ? `${dllPct.toFixed(1)}% ($${dllAmount.toLocaleString()})` : "Disabled";
+        this.dom.pfDllReadout.innerText = dllEnabled ? `$${dllAmount.toLocaleString()} (${((dllAmount / cap) * 100).toFixed(1)}%)` : "Disabled";
+      }
+
+      const dplEnabled = this.dom.pfChkDpl ? this.dom.pfChkDpl.checked : false;
+      const dplAmount = (this.dom.pfInputDplAmount && parseFloat(this.dom.pfInputDplAmount.value) > 0)
+        ? Math.round(parseFloat(this.dom.pfInputDplAmount.value))
+        : 1200;
+      if (this.dom.pfDplReadout) {
+        this.dom.pfDplReadout.innerText = dplEnabled ? `+$${dplAmount.toLocaleString()} / day` : "Disabled";
       }
 
       const targetPct = parseFloat(this.dom.pfSliderTarget.value) || 6;
@@ -3981,6 +4046,13 @@
       const mddPct = parseFloat(this.dom.pfSliderMdd.value) || 5.0;
       const dllEnabled = this.dom.pfChkDll.checked;
       const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3.0;
+      const dllAmount = (this.dom.pfInputDllAmount && parseFloat(this.dom.pfInputDllAmount.value) > 0)
+        ? Math.round(parseFloat(this.dom.pfInputDllAmount.value))
+        : Math.round(cap * (dllPct / 100));
+      const dplEnabled = this.dom.pfChkDpl ? this.dom.pfChkDpl.checked : false;
+      const dplAmount = (this.dom.pfInputDplAmount && parseFloat(this.dom.pfInputDplAmount.value) > 0)
+        ? Math.round(parseFloat(this.dom.pfInputDplAmount.value))
+        : 0.0;
       const targetPct = parseFloat(this.dom.pfSliderTarget.value) || 6.0;
       const minDays = parseInt(this.dom.pfSliderMinDays.value) || 2;
 
@@ -3994,6 +4066,9 @@
             max_drawdown_pct: mddPct,
             daily_loss_limit_enabled: dllEnabled,
             daily_loss_limit_pct: dllPct,
+            daily_loss_limit_amount: dllAmount,
+            daily_profit_limit_enabled: dplEnabled,
+            daily_profit_limit_amount: dplAmount,
             profit_target_pct: targetPct,
             min_trading_days: minDays
           })
@@ -4374,13 +4449,25 @@
             this.dom.pfSizeChips.querySelectorAll(".pf-chip").forEach(c => c.classList.remove("active"));
             chip.classList.add("active");
             this.dom.pfInputCustomCapital.value = chip.dataset.val;
+            if (this.dom.pfInputDllAmount && this.dom.pfSliderDll) {
+              const cVal = parseFloat(chip.dataset.val) || 50000;
+              const pct = parseFloat(this.dom.pfSliderDll.value) || 3;
+              this.dom.pfInputDllAmount.value = Math.round(cVal * (pct / 100));
+            }
             this.updatePropFirmSetupReadouts();
           });
         });
       }
 
       if (this.dom.pfInputCustomCapital) {
-        this.dom.pfInputCustomCapital.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+        this.dom.pfInputCustomCapital.addEventListener("input", () => {
+          if (this.dom.pfInputDllAmount && this.dom.pfSliderDll) {
+            const cVal = parseFloat(this.dom.pfInputCustomCapital.value) || 50000;
+            const pct = parseFloat(this.dom.pfSliderDll.value) || 3;
+            this.dom.pfInputDllAmount.value = Math.round(cVal * (pct / 100));
+          }
+          this.updatePropFirmSetupReadouts();
+        });
       }
 
       // Drawdown Type buttons
@@ -4411,7 +4498,23 @@
         this.dom.pfChkDll.addEventListener("change", () => this.updatePropFirmSetupReadouts());
       }
       if (this.dom.pfSliderDll) {
-        this.dom.pfSliderDll.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+        this.dom.pfSliderDll.addEventListener("input", () => {
+          const cap = parseFloat(this.dom.pfInputCustomCapital?.value) || 50000;
+          const pct = parseFloat(this.dom.pfSliderDll.value) || 3;
+          if (this.dom.pfInputDllAmount) {
+            this.dom.pfInputDllAmount.value = Math.round(cap * (pct / 100));
+          }
+          this.updatePropFirmSetupReadouts();
+        });
+      }
+      if (this.dom.pfInputDllAmount) {
+        this.dom.pfInputDllAmount.addEventListener("input", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfChkDpl) {
+        this.dom.pfChkDpl.addEventListener("change", () => this.updatePropFirmSetupReadouts());
+      }
+      if (this.dom.pfInputDplAmount) {
+        this.dom.pfInputDplAmount.addEventListener("input", () => this.updatePropFirmSetupReadouts());
       }
       if (this.dom.pfSliderTarget) {
         this.dom.pfSliderTarget.addEventListener("input", () => this.updatePropFirmSetupReadouts());

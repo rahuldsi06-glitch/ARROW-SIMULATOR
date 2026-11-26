@@ -917,6 +917,27 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertIn(yesterday, pdata["calendar"])
         self.assertEqual(pdata["calendar"][yesterday]["pnl"], 100.0)
 
+    def test_prop_firm_custom_daily_max_loss_and_profit_cap(self):
+        res = self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 10000.0,
+            "drawdown_type": "static",
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit_enabled": True,
+            "daily_loss_limit_pct": 3.0,
+            "daily_loss_limit_amount": 250.0,
+            "daily_profit_limit_enabled": True,
+            "daily_profit_limit_amount": 400.0,
+            "profit_target_pct": 6.0,
+            "min_trading_days": 2
+        })
+        self.assertEqual(res.status_code, 200)
+        pf = res.json()["prop_firm"]
+        self.assertEqual(pf["account_size"], 10000.0)
+        self.assertEqual(pf["drawdown_type"], "static")
+        self.assertEqual(pf["daily_loss_limit_amount"], 250.0)
+        self.assertTrue(pf["daily_profit_limit_enabled"])
+        self.assertEqual(pf["daily_profit_limit_amount"], 400.0)
+
 
 if __name__ == "__main__":
     unittest.main()

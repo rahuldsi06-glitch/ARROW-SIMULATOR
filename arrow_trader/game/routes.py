@@ -88,6 +88,9 @@ class PropFirmSetupRequest(BaseModel):
     max_drawdown_pct: float = 5.0
     daily_loss_limit_enabled: bool = True
     daily_loss_limit_pct: Optional[float] = 3.0
+    daily_loss_limit_amount: Optional[float] = None
+    daily_profit_limit_enabled: bool = False
+    daily_profit_limit_amount: float = 0.0
     profit_target_pct: float = 6.0
     min_trading_days: int = 2
 
@@ -275,7 +278,10 @@ def setup_propfirm(req: PropFirmSetupRequest) -> Dict[str, Any]:
             dll_pct=req.daily_loss_limit_pct if req.daily_loss_limit_enabled else 0.0,
             target_pct=req.profit_target_pct,
             min_days=req.min_trading_days,
-            daily_loss_limit_enabled=req.daily_loss_limit_enabled
+            daily_loss_limit_enabled=req.daily_loss_limit_enabled,
+            daily_loss_limit_amount=req.daily_loss_limit_amount,
+            daily_profit_limit_enabled=req.daily_profit_limit_enabled,
+            daily_profit_limit_amount=req.daily_profit_limit_amount
         )
         return {
             "status": "success",
