@@ -267,10 +267,11 @@ class SimulatorService:
         open_anchor = float(today_candles[0]["open"])
         tz_offset = "-0400" if is_us else "+0530"
 
+        actual_date_str = str(today_candles[0].get("timestamp", date_str))[:10]
         try:
-            curr_day_dt = datetime.strptime(date_str, "%Y-%m-%d")
+            curr_day_dt = datetime.strptime(actual_date_str, "%Y-%m-%d")
         except Exception:
-            curr_day_dt = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            curr_day_dt = datetime.fromtimestamp(int(today_candles[0]["time"])).replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Previous weekday
         prev_day_dt = curr_day_dt - timedelta(days=1)
