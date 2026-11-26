@@ -56,9 +56,9 @@
       });
     }
 
-    registerEma("ARROW_EMA9", "EMA9", 9, "#38bdf8", 1.5);
-    registerEma("ARROW_EMA21", "EMA21", 21, "#f59e0b", 1.5);
-    registerEma("ARROW_EMA50", "EMA50", 50, "#a855f7", 1.7);
+    registerEma("ARROW_EMA9", "EMA9", 9, "rgba(56, 189, 248, 0.5)", 1.2);
+    registerEma("ARROW_EMA21", "EMA21", 21, "rgba(245, 158, 11, 0.5)", 1.2);
+    registerEma("ARROW_EMA50", "EMA50", 50, "rgba(168, 85, 247, 0.5)", 1.4);
 
     // 200 SMA
     kc.registerIndicator({
@@ -68,7 +68,7 @@
       calcParams: [200],
       precision: 2,
       styles: {
-        lines: [{ color: "#f97316", size: 2.0, style: "solid", smooth: false, dashedValue: [2, 2] }],
+        lines: [{ color: "rgba(249, 115, 22, 0.5)", size: 1.5, style: "solid", smooth: false, dashedValue: [2, 2] }],
       },
       figures: [{ key: "ma", title: "MA200: ", type: "line" }],
       calc: (dataList, indicator) => {
@@ -92,7 +92,7 @@
       calcParams: [],
       precision: 2,
       styles: {
-        lines: [{ color: "#8b5cf6", size: 1.6, style: "solid", smooth: false, dashedValue: [2, 2] }],
+        lines: [{ color: "rgba(139, 92, 246, 0.5)", size: 1.4, style: "solid", smooth: false, dashedValue: [2, 2] }],
       },
       figures: [{ key: "vwap", title: "VWAP: ", type: "line" }],
       calc: (dataList) => {
@@ -125,8 +125,8 @@
       precision: 2,
       styles: {
         lines: [
-          { color: "#10b981", size: 2.0, style: "solid", smooth: false, dashedValue: [2, 2] },
-          { color: "#f43f5e", size: 2.0, style: "solid", smooth: false, dashedValue: [2, 2] },
+          { color: "rgba(16, 185, 129, 0.5)", size: 1.5, style: "solid", smooth: false, dashedValue: [2, 2] },
+          { color: "rgba(244, 63, 94, 0.5)", size: 1.5, style: "solid", smooth: false, dashedValue: [2, 2] },
         ],
       },
       figures: [
@@ -329,8 +329,19 @@
         },
       },
       indicator: {
+        bars: [
+          {
+            style: "fill",
+            borderStyle: "solid",
+            borderSize: 1,
+            borderDashedValue: [2, 2],
+            upColor: "rgba(16, 185, 129, 0.45)",
+            downColor: "rgba(244, 63, 94, 0.45)",
+            noChangeColor: "rgba(148, 163, 184, 0.45)",
+          },
+        ],
         tooltip: {
-          showRule: "always",
+          showRule: "follow_cross",
           showType: "standard",
           text: {
             size: 10,
