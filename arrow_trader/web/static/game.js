@@ -3707,6 +3707,13 @@
           this.authManager.trackEvent("DLL_LOCKOUT", { day_pnl: todayPnl, limit: pf.daily_loss_limit_amount });
         }
         if (this.dom.propFirmDllBanner) {
+          const iconEl = document.getElementById("dll-banner-icon");
+          const headEl = document.getElementById("dll-banner-headline");
+          if (iconEl) iconEl.innerText = "🛑";
+          if (headEl) {
+            headEl.innerText = "DAILY LOSS LIMIT BREACHED";
+            headEl.style.color = "";
+          }
           if (this.dom.dllBannerSub) {
             this.dom.dllBannerSub.innerHTML = `Today's loss reached <b>-${this.formatCurrency(Math.abs(todayPnl))}</b> (Limit: -${this.formatCurrency(pf.daily_loss_limit_amount)}). Trading for this session is locked to protect your account. Click <b>"Advance to Next Day"</b> to trade the next market session.`;
           }
@@ -3755,8 +3762,15 @@
           this.dom.btnExecuteOrder.classList.add("risk-locked");
         }
         if (this.dom.propFirmDllBanner) {
+          const iconEl = document.getElementById("dll-banner-icon");
+          const headEl = document.getElementById("dll-banner-headline");
+          if (iconEl) iconEl.innerText = "✅";
+          if (headEl) {
+            headEl.innerText = "DAILY MAX PROFIT CAP REACHED";
+            headEl.style.color = "#10b981";
+          }
           if (this.dom.dllBannerSub) {
-            this.dom.dllBannerSub.innerHTML = `✅ <b>DAILY MAX PROFIT CAP REACHED (+${this.formatCurrency(todayPnl)} / Cap: +${this.formatCurrency(pf.daily_profit_limit_amount)})</b>. Profits locked and trading paused for today to protect your Consistency Rule. Click <b>"Advance to Next Day"</b> to continue.`;
+            this.dom.dllBannerSub.innerHTML = `<b>+${this.formatCurrency(todayPnl)}</b> locked in (Daily Cap: +${this.formatCurrency(pf.daily_profit_limit_amount)}). Trading is paused for today to protect your Consistency Rule. Click <b>"Advance to Next Day"</b> to continue.`;
           }
           this.dom.propFirmDllBanner.classList.remove("hidden");
         }
