@@ -790,7 +790,6 @@
           this.instrumentType = "futures";
           this.startingCapital = this.usdStartingCapital;
           this.currentCapital = this.usdCurrentCapital;
-          if (s.currentMarket) this.currentMarket = s.currentMarket;
 
           if (this.currentMarket === "US") {
             this.startingCapital = this.usdStartingCapital;
@@ -865,9 +864,12 @@
               if (st.inr_current_balance) this.inrCurrentCapital = st.inr_current_balance;
               if (st.usd_starting_balance) this.usdStartingCapital = st.usd_starting_balance;
               if (st.usd_current_balance) this.usdCurrentCapital = st.usd_current_balance;
-              if (st.market) this.currentMarket = st.market;
-              this.startingCapital = this.currentMarket === "US" ? this.usdStartingCapital : this.inrStartingCapital;
-              this.currentCapital = this.currentMarket === "US" ? this.usdCurrentCapital : this.inrCurrentCapital;
+              // Dedicated US Prop Firm Simulator always uses US market
+              this.currentMarket = "US";
+              this.currentMode = "us_futures";
+              this.instrumentType = "futures";
+              this.startingCapital = this.usdStartingCapital;
+              this.currentCapital = this.usdCurrentCapital;
               this.dayStartCapital = this.currentCapital;
             }
             if (st.prop_firm && !hasLocal) {
