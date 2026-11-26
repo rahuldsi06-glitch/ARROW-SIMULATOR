@@ -56,6 +56,11 @@
           powerPreference: "high-performance",
         });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setClearColor(0x000000, 0);
+        canvas.addEventListener("webglcontextlost", (ev) => {
+          ev.preventDefault();
+          canvas.style.display = "none";
+        });
         return renderer;
       } catch (e) {
         return null;
@@ -151,6 +156,8 @@
     _initFxOverlay() {
       const canvas = document.getElementById("three-fx-canvas");
       if (!canvas) return;
+      this.fxCanvas = canvas;
+      canvas.style.display = "none";
       const renderer = this._createRenderer(canvas, true);
       if (!renderer) return;
 
@@ -243,6 +250,7 @@
 
       this.fxScene.add(group);
       this.fxBursts.push({ group, shards, age: 0, maxAge: 2.3 });
+      if (this.fxCanvas) this.fxCanvas.style.display = "block";
       this.rankBoost = 2.5;
     }
 
@@ -262,14 +270,18 @@
     }
 
     _startLoop() {
+      let bgAccum = 0;
       const animate = () => {
         this._rafId = requestAnimationFrame(animate);
+        if (document.hidden) return;
         const dt = Math.min(this._clock.getDelta(), 0.05);
         const elapsed = this._clock.getElapsedTime();
+        bgAccum += dt;
 
-        // 1. Ambient background wave + mood hue interpolation
-        if (this.bgRenderer && this.bgScene && this.bgCamera) {
-          this.moodHue += (this.targetHue - this.moodHue) * 0.04;
+        // 1. Ambient background wave + mood hue interpolation (~30fps to avoid GPU saturation)
+        if (bgAccum >= 0.033 && this.bgRenderer && this.bgScene && this.bgCamera) {
+          bgAccum = 0;
+          this.moodHue += (this.targetHue - this.moodHue) * 0.06;
           if (this.bgGrid) {
             const posAttr = this.bgGrid.geometry.attributes.position;
             const base = this.bgGridBaseY;
@@ -323,8 +335,9 @@
               }
             }
             this.fxRenderer.render(this.fxScene, this.fxCamera);
-          } else {
+          } else if (this.fxCanvas && this.fxCanvas.style.display !== "none") {
             this.fxRenderer.clear();
+            this.fxCanvas.style.display = "none";
           }
         }
       };

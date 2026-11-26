@@ -459,9 +459,24 @@
         }
       });
 
-      // Auto-resize observer
+      // Auto-resize observer (debounced to prevent feedback loops)
       if (typeof ResizeObserver !== "undefined") {
-        const ro = new ResizeObserver(() => this.resize());
+        let resizeRaf = null;
+        let lastMainW = 0;
+        let lastMainH = 0;
+        const ro = new ResizeObserver(() => {
+          if (resizeRaf) cancelAnimationFrame(resizeRaf);
+          resizeRaf = requestAnimationFrame(() => {
+            resizeRaf = null;
+            const curW = mainEl.clientWidth;
+            const curH = mainEl.clientHeight;
+            if (curW > 0 && curH > 0 && (curW !== lastMainW || curH !== lastMainH)) {
+              lastMainW = curW;
+              lastMainH = curH;
+              this.resize();
+            }
+          });
+        });
         if (mainEl.parentElement) ro.observe(mainEl.parentElement);
         if (htfEl && htfEl.parentElement) ro.observe(htfEl.parentElement);
       } else {
