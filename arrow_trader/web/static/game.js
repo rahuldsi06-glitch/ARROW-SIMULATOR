@@ -788,7 +788,7 @@
           this.currentCapital = this.inrCurrentCapital;
           if (s.usdStartingCapital) this.usdStartingCapital = parseFloat(s.usdStartingCapital) || 50000.0;
           if (s.usdCurrentCapital) this.usdCurrentCapital = parseFloat(s.usdCurrentCapital) || 50000.0;
-          if (s.currentMarket) this.currentMarket = s.currentMarket;
+          // Dedicated Indian Options mode
 
           if (this.currentMarket === "US") {
             this.startingCapital = this.usdStartingCapital;
@@ -863,7 +863,7 @@
               if (st.inr_current_balance) this.inrCurrentCapital = st.inr_current_balance;
               if (st.usd_starting_balance) this.usdStartingCapital = st.usd_starting_balance;
               if (st.usd_current_balance) this.usdCurrentCapital = st.usd_current_balance;
-              if (st.market) this.currentMarket = st.market;
+              this.currentMarket = "IN";
               this.startingCapital = this.currentMarket === "US" ? this.usdStartingCapital : this.inrStartingCapital;
               this.currentCapital = this.currentMarket === "US" ? this.usdCurrentCapital : this.inrCurrentCapital;
               this.dayStartCapital = this.currentCapital;
