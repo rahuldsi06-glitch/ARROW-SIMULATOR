@@ -4058,32 +4058,32 @@
       if (!this.dom.modalPropFirmSetup) return;
 
       if (presetKey === "topstep50k") {
-        this.dom.pfInputCustomCapital.value = 50000;
-        this.dom.btnPfDdEod.classList.add("active");
-        this.dom.btnPfDdStatic.classList.remove("active");
-        this.dom.pfSliderMdd.value = 4.0;
-        this.dom.pfChkDll.checked = true;
-        this.dom.pfSliderDll.value = 2.0;
-        this.dom.pfSliderTarget.value = 6.0;
-        this.dom.pfSliderMinDays.value = 2;
+        if (this.dom.pfInputCustomCapital) this.dom.pfInputCustomCapital.value = 50000;
+        if (this.dom.btnPfDdEod) this.dom.btnPfDdEod.classList.add("active");
+        if (this.dom.btnPfDdStatic) this.dom.btnPfDdStatic.classList.remove("active");
+        if (this.dom.pfSliderMdd) this.dom.pfSliderMdd.value = 4.0;
+        if (this.dom.pfChkDll) this.dom.pfChkDll.checked = true;
+        if (this.dom.pfSliderDll) this.dom.pfSliderDll.value = 2.0;
+        if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = 6.0;
+        if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = 2;
       } else if (presetKey === "apex50k") {
-        this.dom.pfInputCustomCapital.value = 50000;
-        this.dom.btnPfDdEod.classList.add("active");
-        this.dom.btnPfDdStatic.classList.remove("active");
-        this.dom.pfSliderMdd.value = 5.0;
-        this.dom.pfChkDll.checked = false;
-        this.dom.pfSliderDll.value = 3.0;
-        this.dom.pfSliderTarget.value = 6.0;
-        this.dom.pfSliderMinDays.value = 1;
+        if (this.dom.pfInputCustomCapital) this.dom.pfInputCustomCapital.value = 50000;
+        if (this.dom.btnPfDdEod) this.dom.btnPfDdEod.classList.add("active");
+        if (this.dom.btnPfDdStatic) this.dom.btnPfDdStatic.classList.remove("active");
+        if (this.dom.pfSliderMdd) this.dom.pfSliderMdd.value = 5.0;
+        if (this.dom.pfChkDll) this.dom.pfChkDll.checked = false;
+        if (this.dom.pfSliderDll) this.dom.pfSliderDll.value = 3.0;
+        if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = 6.0;
+        if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = 1;
       } else if (presetKey === "fundednext50k") {
-        this.dom.pfInputCustomCapital.value = 50000;
-        this.dom.btnPfDdEod.classList.remove("active");
-        this.dom.btnPfDdStatic.classList.add("active");
-        this.dom.pfSliderMdd.value = 6.0;
-        this.dom.pfChkDll.checked = true;
-        this.dom.pfSliderDll.value = 3.0;
-        this.dom.pfSliderTarget.value = 6.0;
-        this.dom.pfSliderMinDays.value = 3;
+        if (this.dom.pfInputCustomCapital) this.dom.pfInputCustomCapital.value = 50000;
+        if (this.dom.btnPfDdEod) this.dom.btnPfDdEod.classList.remove("active");
+        if (this.dom.btnPfDdStatic) this.dom.btnPfDdStatic.classList.add("active");
+        if (this.dom.pfSliderMdd) this.dom.pfSliderMdd.value = 6.0;
+        if (this.dom.pfChkDll) this.dom.pfChkDll.checked = true;
+        if (this.dom.pfSliderDll) this.dom.pfSliderDll.value = 3.0;
+        if (this.dom.pfSliderTarget) this.dom.pfSliderTarget.value = 6.0;
+        if (this.dom.pfSliderMinDays) this.dom.pfSliderMinDays.value = 3;
       }
 
       // Update chips
@@ -4111,8 +4111,8 @@
         this.dom.pfMddFloorPreview.innerText = `Starting Floor: $${floorAmount.toLocaleString()}`;
       }
 
-      const dllEnabled = this.dom.pfChkDll.checked;
-      const dllPct = parseFloat(this.dom.pfSliderDll.value) || 3;
+      const dllEnabled = this.dom.pfChkDll ? this.dom.pfChkDll.checked : true;
+      const dllPct = this.dom.pfSliderDll ? (parseFloat(this.dom.pfSliderDll.value) || 3) : 3;
       const dllAmount = (this.dom.pfInputDllAmount && parseFloat(this.dom.pfInputDllAmount.value) > 0)
         ? Math.round(parseFloat(this.dom.pfInputDllAmount.value))
         : Math.round(cap * (dllPct / 100));
