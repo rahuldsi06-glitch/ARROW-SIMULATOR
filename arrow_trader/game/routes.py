@@ -103,6 +103,7 @@ class DailyRiskRequest(BaseModel):
     daily_loss_limit_amount: float = 1500.0
     daily_profit_limit_enabled: bool = False
     daily_profit_limit_amount: float = 0.0
+    consistency_rule_pct: Optional[float] = None
     prop_firm: Optional[Dict[str, Any]] = None
 
 
@@ -315,6 +316,7 @@ def update_daily_risk(req: DailyRiskRequest) -> Dict[str, Any]:
             daily_loss_limit_amount=req.daily_loss_limit_amount,
             daily_profit_limit_enabled=req.daily_profit_limit_enabled,
             daily_profit_limit_amount=req.daily_profit_limit_amount,
+            consistency_rule_pct=req.consistency_rule_pct,
             client_prop_firm=req.prop_firm,
         )
         return {"status": "success", "prop_firm": pf}

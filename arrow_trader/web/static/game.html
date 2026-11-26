@@ -1099,13 +1099,18 @@
 
       <!-- Direct Funded Consistency Rule (Shown only when Direct Funded is selected) -->
       <div class="pf-field-group hidden" id="pf-direct-consistency-group">
-        <label class="pf-label">FUNDED CONSISTENCY RULE:</label>
+        <label class="pf-label">FUNDED CONSISTENCY RULE (%):</label>
         <select id="pf-direct-consistency-select" class="cyber-select" style="width: 100%;">
-          <option value="0">No Consistency Rule (Free Payouts)</option>
+          <option value="0">No Consistency Rule (0% - Free Payouts)</option>
           <option value="50">50% Consistency Rule (Apex Standard)</option>
           <option value="40" selected>40% Consistency Rule (Topstep Standard)</option>
           <option value="30">30% Consistency Rule (Conservative)</option>
+          <option value="25">25% Consistency Rule (Strict)</option>
         </select>
+        <div class="pf-custom-input-row" style="margin-top: 8px;">
+          <span class="sub-label">Custom Consistency % (0 = Off):</span>
+          <input type="number" id="pf-direct-consistency-input" value="40" min="0" max="100" step="5" class="cyber-input font-mono pf-num-input">
+        </div>
       </div>
 
       <!-- Drawdown Model: Static vs EOD Trailing -->
@@ -1407,6 +1412,20 @@
         </div>
         <p class="pf-help-text" style="margin-top: 4px;">
           Locks in profits &amp; pauses trading for the day once hit so you never breach your Consistency Rule.
+        </p>
+      </div>
+
+      <div class="pf-field-group" id="dr-consistency-group">
+        <div class="pf-slider-header">
+          <label for="dr-input-consistency-pct" class="pf-label">FUNDED CONSISTENCY RULE (%):</label>
+          <span class="pf-slider-readout font-mono" id="dr-consistency-readout">40% Max Day</span>
+        </div>
+        <div class="pf-custom-input-row" style="margin-top: 6px;">
+          <span class="sub-label">Max Single-Day Profit % (0 = Off):</span>
+          <input type="number" id="dr-input-consistency-pct" value="40" min="0" max="100" step="5" class="cyber-input font-mono pf-num-input">
+        </div>
+        <p class="pf-help-text" style="margin-top: 4px;">
+          Configurable anytime for Funded Accounts (e.g. 30%, 40%, 50%, or 0 for no restriction).
         </p>
       </div>
 

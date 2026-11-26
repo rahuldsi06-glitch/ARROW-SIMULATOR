@@ -3955,11 +3955,13 @@
       const inDll = document.getElementById("dr-input-dll-amount");
       const chkDpl = document.getElementById("dr-chk-dpl");
       const inDpl = document.getElementById("dr-input-dpl-amount");
+      const inCons = document.getElementById("dr-input-consistency-pct");
 
       if (chkDll) chkDll.checked = !!pf.daily_loss_limit_enabled;
       if (inDll) inDll.value = pf.daily_loss_limit_amount || Math.round((pf.account_size || 50000) * 0.03);
       if (chkDpl) chkDpl.checked = !!pf.daily_profit_limit_enabled;
       if (inDpl) inDpl.value = pf.daily_profit_limit_amount || 1200;
+      if (inCons) inCons.value = (typeof pf.consistency_rule_pct === "number") ? pf.consistency_rule_pct : 40;
 
       this.updateDailyRiskReadouts();
       modal.classList.remove("hidden");
@@ -3976,6 +3978,10 @@
       const dplAmt = parseFloat(document.getElementById("dr-input-dpl-amount")?.value) || 0;
       const dplRead = document.getElementById("dr-dpl-readout");
       if (dplRead) dplRead.innerText = dplOn ? `+$${dplAmt.toLocaleString()} / day` : "Disabled";
+
+      const consPct = Math.max(0, Math.min(100, parseFloat(document.getElementById("dr-input-consistency-pct")?.value ?? "40") || 0));
+      const consRead = document.getElementById("dr-consistency-readout");
+      if (consRead) consRead.innerText = consPct === 0 ? "Disabled (Free)" : `${consPct}% Max Day`;
     }
 
     async saveDailyRiskSettings() {
@@ -3983,6 +3989,7 @@
       const dllAmt = Math.max(0, parseFloat(document.getElementById("dr-input-dll-amount")?.value) || 0);
       const dplOn = !!document.getElementById("dr-chk-dpl")?.checked;
       const dplAmt = Math.max(0, parseFloat(document.getElementById("dr-input-dpl-amount")?.value) || 0);
+      const consPct = Math.max(0, Math.min(100, parseFloat(document.getElementById("dr-input-consistency-pct")?.value ?? "40") || 0));
 
       if (!this.propFirm) this.propFirm = this.getDefaultPropFirmState();
       const cap = parseFloat(this.propFirm.account_size) || 50000;
@@ -3991,6 +3998,9 @@
       this.propFirm.daily_loss_limit_pct = dllOn && cap > 0 ? Math.round((dllAmt / cap) * 1000) / 10 : 0;
       this.propFirm.daily_profit_limit_enabled = dplOn;
       this.propFirm.daily_profit_limit_amount = dplOn ? dplAmt : 0;
+      this.propFirm.consistency_rule_pct = consPct;
+      const lPct = this.propFirm.largest_day_pct || 0;
+      this.propFirm.consistency_satisfied = (consPct === 0) || (lPct <= consPct);
 
       this.saveState();
       this.renderPropFirmHUD();
@@ -4009,6 +4019,7 @@
             daily_loss_limit_amount: dllAmt,
             daily_profit_limit_enabled: dplOn,
             daily_profit_limit_amount: dplAmt,
+            consistency_rule_pct: consPct,
             prop_firm: this.propFirm
           })
         });
@@ -4151,7 +4162,11 @@
       const mddPct = parseFloat(this.dom.pfSliderMdd.value) || 5.0;
       const isDirectFunded = document.getElementById("btn-pf-phase-funded")?.classList.contains("active");
       const startPhase = isDirectFunded ? "funded" : "evaluation";
-      const consistencyPct = parseFloat(document.getElementById("pf-direct-consistency-select")?.value ?? "40") || 0.0;
+      const consistencyPct = Math.max(0, Math.min(100, parseFloat(
+        document.getElementById("pf-direct-consistency-input")?.value ??
+        document.getElementById("pf-direct-consistency-select")?.value ??
+        "40"
+      ) || 0));
       const curPf = this.propFirm || this.getDefaultPropFirmState(cap);
       const dllEnabled = (typeof curPf.daily_loss_limit_enabled === "boolean") ? curPf.daily_loss_limit_enabled : true;
       const dllPct = parseFloat(curPf.daily_loss_limit_pct ?? 3.0);
@@ -4559,6 +4574,11 @@
       document.getElementById("dr-input-dll-amount")?.addEventListener("input", () => this.updateDailyRiskReadouts());
       document.getElementById("dr-chk-dpl")?.addEventListener("change", () => this.updateDailyRiskReadouts());
       document.getElementById("dr-input-dpl-amount")?.addEventListener("input", () => this.updateDailyRiskReadouts());
+      document.getElementById("dr-input-consistency-pct")?.addEventListener("input", () => this.updateDailyRiskReadouts());
+      document.getElementById("pf-direct-consistency-select")?.addEventListener("change", (e) => {
+        const inp = document.getElementById("pf-direct-consistency-input");
+        if (inp) inp.value = e.target.value;
+      });
       document.getElementById("btn-save-daily-risk")?.addEventListener("click", () => this.saveDailyRiskSettings());
       if (this.dom.btnPfPayout) {
         this.dom.btnPfPayout.addEventListener("click", () => this.openPropFirmPayoutModal());

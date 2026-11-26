@@ -859,9 +859,10 @@ class SimulatorService:
         daily_loss_limit_amount: float,
         daily_profit_limit_enabled: bool,
         daily_profit_limit_amount: float,
+        consistency_rule_pct: Optional[float] = None,
         client_prop_firm: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Updates Daily Max Loss and Daily Max Profit Cap without resetting the active account."""
+        """Updates Daily Max Loss, Daily Max Profit Cap, and Consistency Rule without resetting the active account."""
         state = self.load_game_state()
         if client_prop_firm and isinstance(client_prop_firm, dict) and client_prop_firm.get("account_size"):
             pf = client_prop_firm
@@ -874,6 +875,11 @@ class SimulatorService:
         pf["daily_loss_limit_pct"] = round((pf["daily_loss_limit_amount"] / account_size) * 100, 2) if account_size > 0 else 0.0
         pf["daily_profit_limit_enabled"] = bool(daily_profit_limit_enabled)
         pf["daily_profit_limit_amount"] = round(float(daily_profit_limit_amount), 2) if daily_profit_limit_enabled else 0.0
+        if consistency_rule_pct is not None:
+            rule_pct = max(0.0, min(100.0, float(consistency_rule_pct)))
+            pf["consistency_rule_pct"] = rule_pct
+            largest_pct = float(pf.get("largest_day_pct", 0.0))
+            pf["consistency_satisfied"] = (rule_pct == 0.0) or (largest_pct <= rule_pct)
         state["prop_firm"] = pf
         self.save_game_state(state)
         return pf
