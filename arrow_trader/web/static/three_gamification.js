@@ -39,7 +39,7 @@
         console.warn("Three.js not loaded; 3D gamification effects disabled.");
         return;
       }
-      this._initAmbientBg();
+      // Lightweight mode: keep 3D Rank Core & celebration FX bursts, skip heavy full-screen bg wave
       this._initRankBadge();
       this._initFxOverlay();
       this._startLoop();

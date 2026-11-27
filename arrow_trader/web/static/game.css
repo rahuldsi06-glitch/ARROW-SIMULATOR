@@ -3454,3 +3454,144 @@ body.theme-obsidian {
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
 }
+
+/* ==========================================================================
+   V3 INSTITUTIONAL PRO DESIGN SYSTEM (LIGHTWEIGHT & RESPONSIVE)
+   ========================================================================== */
+body.theme-obsidian {
+  background: #080a0f;
+  background-image: none;
+}
+
+.app-header {
+  height: 46px;
+  background: #0c0f16;
+  backdrop-filter: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 12px;
+}
+
+.brand-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.brand-title {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.brand-badge {
+  font-size: 9px;
+  padding: 2px 5px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
+.propfirm-hud-bar {
+  background: #0d1118;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+  padding: 5px 12px;
+  gap: 8px;
+}
+
+.propfirm-hud-bar.funded-active {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), #0d1118 45%);
+  border-bottom-color: rgba(16, 185, 129, 0.25);
+}
+
+.pf-metric-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 4px 9px;
+}
+
+.btn-pf-action,
+.btn-pf-ghost,
+.tool-btn,
+.indicator-btn,
+.tf-btn,
+.lvl-btn {
+  box-shadow: none !important;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+/* Streamlined single-line ticker bar (KLineChart shows live OHLCV on canvas) */
+.chart-ticker-bar {
+  min-height: 36px;
+  padding: 4px 12px;
+  background: #0b0e14;
+  backdrop-filter: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+}
+
+.ticker-desc,
+.ohlc-readout {
+  display: none !important;
+}
+
+.chart-pro-ribbon {
+  padding: 4px 12px;
+  background: #0a0d13;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+}
+
+.replay-deck {
+  padding: 6px 12px;
+  background: #0c0f16;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.terminal-stage {
+  background: #0c0f16;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cyber-modal {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #10141e;
+  backdrop-filter: none;
+}
+
+/* Responsive Terminal Layout */
+@media (max-width: 1200px) {
+  body.theme-obsidian {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  .app-body {
+    flex-direction: column;
+    overflow: visible;
+  }
+  .chart-stage {
+    min-height: 540px;
+  }
+  .terminal-stage {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .app-header {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 820px) {
+  .chart-htf-pane {
+    display: none;
+  }
+  .profile-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
