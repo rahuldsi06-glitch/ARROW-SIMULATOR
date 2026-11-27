@@ -86,17 +86,15 @@ body.theme-obsidian {
    TOP APPLICATION BAR
    ========================================================================== */
 .app-header {
-  min-height: 52px;
-  height: auto;
+  height: 56px;
   background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  padding: 6px 14px;
+  gap: 8px;
+  padding: 0 14px;
   z-index: 50;
   flex-shrink: 0;
 }
@@ -104,15 +102,14 @@ body.theme-obsidian {
 .header-left, .header-center, .header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .instrument-picker {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 /* Brand */
