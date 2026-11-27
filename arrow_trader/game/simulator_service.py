@@ -749,6 +749,9 @@ class SimulatorService:
             "daily_profit_limit_amount": round(float(daily_profit_limit_amount or 0.0), 2),
             "profit_target_pct": target_pct,
             "profit_target_amount": profit_target_amount,
+            "payout_target_pct": target_pct,
+            "payout_target_amount": profit_target_amount,
+            "payout_eligible": False,
             "min_trading_days": min_days,
             "high_water_mark": account_size,
             "drawdown_floor": floor,
@@ -844,6 +847,9 @@ class SimulatorService:
             pf["phase"] = "funded"
             pf["status"] = "active"
             pf["consistency_rule_pct"] = float(consistency_rule_pct)
+            pf["payout_target_pct"] = float(target_pct)
+            pf["payout_target_amount"] = round(account_size * (float(target_pct) / 100.0), 2)
+            pf["payout_eligible"] = False
         state["prop_firm"] = pf
         state["usd_starting_balance"] = account_size
         state["usd_current_balance"] = account_size
@@ -852,6 +858,40 @@ class SimulatorService:
             state["current_balance"] = account_size
         self.save_game_state(state)
         return state["prop_firm"]
+
+    def _update_funded_payout_eligibility(self, pf: Dict[str, Any]) -> Dict[str, Any]:
+        """Evaluates whether a Funded Account meets payout target, min days, and consistency rules."""
+        account_size = float(pf.get("account_size", 50000.0))
+        equity = float(pf.get("current_equity", account_size))
+        profit_available = round(equity - account_size, 2)
+
+        target_pct = pf.get("payout_target_pct")
+        if target_pct is None:
+            target_pct = pf.get("profit_target_pct", 5.0)
+        target_pct = float(target_pct or 0.0)
+        target_amt = pf.get("payout_target_amount")
+        if target_amt is None:
+            target_amt = round(account_size * (target_pct / 100.0), 2)
+        target_amt = float(target_amt or 0.0)
+
+        pf["payout_target_pct"] = target_pct
+        pf["payout_target_amount"] = round(target_amt, 2)
+
+        min_days = int(pf.get("min_trading_days", 2))
+        days_traded = int(pf.get("trading_days_count", pf.get("days_traded", 0)))
+        rule_pct = float(pf.get("consistency_rule_pct", 0.0))
+        largest_pct = float(pf.get("largest_day_pct", 0.0))
+        cons_ok = (rule_pct == 0.0) or (largest_pct <= rule_pct)
+
+        pf["payout_eligible"] = (
+            pf.get("phase") == "funded"
+            and pf.get("status") == "active"
+            and profit_available > 0
+            and profit_available >= target_amt
+            and days_traded >= min_days
+            and cons_ok
+        )
+        return pf
 
     def update_daily_risk(
         self,
@@ -880,6 +920,7 @@ class SimulatorService:
             pf["consistency_rule_pct"] = rule_pct
             largest_pct = float(pf.get("largest_day_pct", 0.0))
             pf["consistency_satisfied"] = (rule_pct == 0.0) or (largest_pct <= rule_pct)
+        self._update_funded_payout_eligibility(pf)
         state["prop_firm"] = pf
         self.save_game_state(state)
         return pf
@@ -972,6 +1013,7 @@ class SimulatorService:
         pf["day_start_equity"] = equity
         pf["daily_loss_locked"] = False
         pf["day_dll_breached"] = False
+        self._update_funded_payout_eligibility(pf)
 
         state["prop_firm"] = pf
         self.save_game_state(state)
@@ -980,6 +1022,8 @@ class SimulatorService:
     def activate_funded_account(
         self,
         consistency_rule_pct: float = 40.0,
+        payout_target_pct: Optional[float] = None,
+        min_trading_days: Optional[int] = None,
         client_prop_firm: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Promotes trader from cleared Evaluation to live Funded Account simulation."""
@@ -996,6 +1040,9 @@ class SimulatorService:
         dll_pct = float(pf.get("daily_loss_limit_pct", 3.0))
         dll_amount = float(pf.get("daily_loss_limit_amount", round(account_size * (dll_pct / 100.0), 2)))
         drawdown_type = pf.get("drawdown_type", "eod_trailing")
+        target_pct = float(payout_target_pct if payout_target_pct is not None else pf.get("payout_target_pct") or pf.get("profit_target_pct", 5.0))
+        target_amt = round(account_size * (target_pct / 100.0), 2)
+        days_min = int(min_trading_days if min_trading_days is not None else pf.get("min_trading_days", 2))
 
         pf["phase"] = "funded"
         pf["status"] = "active"
@@ -1007,6 +1054,12 @@ class SimulatorService:
         pf["daily_loss_limit_pct"] = dll_pct
         pf["daily_loss_limit_amount"] = dll_amount
         pf["consistency_rule_pct"] = consistency_rule_pct
+        pf["profit_target_pct"] = target_pct
+        pf["profit_target_amount"] = target_amt
+        pf["payout_target_pct"] = target_pct
+        pf["payout_target_amount"] = target_amt
+        pf["payout_eligible"] = False
+        pf["min_trading_days"] = days_min
         pf["current_equity"] = account_size
         pf["day_start_equity"] = account_size
         pf["high_water_mark"] = account_size
@@ -1063,6 +1116,17 @@ class SimulatorService:
         if amount > profit_available:
             raise ValueError(f"Requested payout ${amount:,.2f} exceeds available funded profit ${profit_available:,.2f}.")
 
+        # Check funded minimum trading days
+        min_days = int(pf.get("min_trading_days", 2))
+        days_traded = int(pf.get("trading_days_count", pf.get("days_traded", 0)))
+        if days_traded < min_days:
+            raise ValueError(f"Minimum trading days not met: {days_traded} / {min_days} days completed.")
+
+        # Check funded payout profit target
+        target_amt = float(pf.get("payout_target_amount") or pf.get("profit_target_amount") or 0.0)
+        if target_amt > 0 and profit_available < target_amt:
+            raise ValueError(f"Payout target not met: Available profit ${profit_available:,.2f} is below the ${target_amt:,.2f} payout target.")
+
         # Check consistency rule if enabled
         rule_pct = float(pf.get("consistency_rule_pct", 0.0))
         largest_pct = float(pf.get("largest_day_pct", 0.0))
@@ -1074,6 +1138,7 @@ class SimulatorService:
         pf["current_equity"] = new_equity
         pf["total_pnl"] = round(new_equity - account_size, 2)
         pf["lifetime_payouts"] = round(float(pf.get("lifetime_payouts", 0.0)) + amount, 2)
+        self._update_funded_payout_eligibility(pf)
 
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         payout_record = {

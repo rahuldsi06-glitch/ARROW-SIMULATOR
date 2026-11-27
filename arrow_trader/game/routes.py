@@ -116,6 +116,8 @@ class PropFirmEODRequest(BaseModel):
 
 class PropFirmFundedRequest(BaseModel):
     consistency_rule_pct: float = 40.0
+    payout_target_pct: Optional[float] = None
+    min_trading_days: Optional[int] = None
     prop_firm: Optional[Dict[str, Any]] = None
 
 
@@ -348,6 +350,8 @@ def activate_funded(req: PropFirmFundedRequest) -> Dict[str, Any]:
     try:
         pf = simulator.activate_funded_account(
             consistency_rule_pct=req.consistency_rule_pct,
+            payout_target_pct=req.payout_target_pct,
+            min_trading_days=req.min_trading_days,
             client_prop_firm=req.prop_firm
         )
         return {

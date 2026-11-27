@@ -3595,3 +3595,9 @@ body.theme-obsidian {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.btn-pf-action.payout-ready {
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.7) !important;
+  color: #34d399 !important;
+}

@@ -3560,6 +3560,9 @@
         daily_loss_limit_amount: Math.round(cap * 0.03),
         profit_target_pct: 6.0,
         profit_target_amount: Math.round(cap * 0.06),
+        payout_target_pct: 6.0,
+        payout_target_amount: Math.round(cap * 0.06),
+        payout_eligible: false,
         min_trading_days: 2,
         trading_days_count: 0,
         days_traded: 0,
@@ -3609,15 +3612,37 @@
         this.dom.pfAccountSizeLabel.innerText = this.formatCurrency(pf.account_size || 50000, true, 0);
       }
 
-      // Profit target progress
+      // Profit / Payout target progress
+      const pfTargetLabel = document.getElementById("pf-target-label");
+      const accountSize = pf.account_size || 50000;
+      const days = (typeof pf.trading_days_count === "number") ? pf.trading_days_count : (pf.days_traded || 0);
+      const minDays = pf.min_trading_days || 2;
+      const rulePct = pf.consistency_rule_pct || 0;
+      const lPct = (typeof pf.largest_day_pct === "number") ? pf.largest_day_pct : (pf.highest_day_pct || 0);
+      const isConsistent = (rulePct === 0) || (lPct <= rulePct);
+
+      let isPayoutEligible = false;
       if (this.dom.pfTargetVal && this.dom.pfTargetBar) {
         if (phase === "funded") {
-          const withdrawable = Math.max(0, equity - (pf.account_size || 50000));
-          this.dom.pfTargetVal.innerText = `Withdrawable: ${this.formatCurrency(withdrawable, true, 0)}`;
-          this.dom.pfTargetBar.style.width = "100%";
+          const profitEarned = Math.max(0, Math.round((equity - accountSize) * 100) / 100);
+          const payoutTarget = parseFloat(pf.payout_target_amount || pf.profit_target_amount) || Math.round(accountSize * ((pf.payout_target_pct || pf.profit_target_pct || 5.0) / 100));
+          const pct = payoutTarget > 0 ? Math.min(100, Math.max(0, (profitEarned / payoutTarget) * 100)) : 100;
+          isPayoutEligible = (pf.status === "active") && (profitEarned > 0) && (profitEarned >= payoutTarget) && (days >= minDays) && isConsistent;
+          if (pfTargetLabel) {
+            pfTargetLabel.innerText = isPayoutEligible ? "PAYOUT ELIGIBLE" : "PAYOUT TARGET";
+            pfTargetLabel.style.color = isPayoutEligible ? "#34d399" : "";
+          }
+          this.dom.pfTargetVal.innerText = isPayoutEligible
+            ? `ELIGIBLE (${this.formatCurrency(profitEarned, true, 0)} / ${this.formatCurrency(payoutTarget, true, 0)})`
+            : `${this.formatCurrency(profitEarned, true, 0)} / ${this.formatCurrency(payoutTarget, true, 0)} (${pct.toFixed(1)}%)`;
+          this.dom.pfTargetBar.style.width = `${pct}%`;
         } else {
-          const profitEarned = Math.max(0, equity - (pf.account_size || 50000));
-          const target = pf.profit_target_amount || Math.round((pf.account_size || 50000) * ((pf.profit_target_pct || 6.0) / 100));
+          if (pfTargetLabel) {
+            pfTargetLabel.innerText = "PROFIT TARGET";
+            pfTargetLabel.style.color = "";
+          }
+          const profitEarned = Math.max(0, equity - accountSize);
+          const target = pf.profit_target_amount || Math.round(accountSize * ((pf.profit_target_pct || 6.0) / 100));
           const pct = Math.min(100, Math.max(0, (profitEarned / target) * 100));
           this.dom.pfTargetVal.innerText = `${this.formatCurrency(profitEarned, true, 0)} / ${this.formatCurrency(target, true, 0)} (${pct.toFixed(1)}%)`;
           this.dom.pfTargetBar.style.width = `${pct}%`;
@@ -3672,9 +3697,12 @@
         }
       }
 
-      // Payout button visibility (only in funded phase)
+      // Payout button visibility & readiness (only in funded phase)
       if (this.dom.btnPfPayout) {
         this.dom.btnPfPayout.classList.toggle("hidden", phase !== "funded");
+        this.dom.btnPfPayout.classList.toggle("payout-ready", phase === "funded" && isPayoutEligible);
+        const span = this.dom.btnPfPayout.querySelector("span");
+        if (span) span.innerText = isPayoutEligible ? "Payout Ready" : "Payout";
       }
     }
 
@@ -4146,7 +4174,10 @@
         this.dom.pfTargetReadout.innerText = `${targetPct.toFixed(1)}% ($${targetAmount.toLocaleString()})`;
       }
       if (this.dom.pfTargetGoalPreview) {
-        this.dom.pfTargetGoalPreview.innerText = `Target Balance: $${goalBalance.toLocaleString()}`;
+        const isFundedMode = document.getElementById("btn-pf-phase-funded")?.classList.contains("active");
+        this.dom.pfTargetGoalPreview.innerText = isFundedMode
+          ? `Payout Eligible At: $${goalBalance.toLocaleString()}`
+          : `Target Balance: $${goalBalance.toLocaleString()}`;
       }
 
       const minDays = parseInt(this.dom.pfSliderMinDays.value) || 2;
@@ -4223,6 +4254,9 @@
             daily_profit_limit_amount: dplAmount,
             profit_target_pct: targetPct,
             profit_target_amount: Math.round(cap * (targetPct / 100)),
+            payout_target_pct: targetPct,
+            payout_target_amount: Math.round(cap * (targetPct / 100)),
+            payout_eligible: false,
             min_trading_days: minDays,
             trading_days_count: 0,
             day_start_equity: cap,
@@ -4261,7 +4295,7 @@
       }
     }
 
-    async activateFundedAccount(consistencyChoice) {
+    async activateFundedAccount(consistencyChoice, payoutTargetPct, minDaysOverride) {
       try {
         const basePf = this.propFirm || this.getDefaultPropFirmState();
         const cap = parseFloat(basePf.account_size) || (this.usdStartingCapital || 50000.0);
@@ -4271,13 +4305,17 @@
         const dllPct = parseFloat(basePf.daily_loss_limit_pct) || 3.0;
         const dllAmt = parseFloat(basePf.daily_loss_limit_amount) || Math.round(cap * (dllPct / 100));
         const ddType = basePf.drawdown_type || "eod_trailing";
-        const minDays = parseInt(basePf.min_trading_days) || 2;
+        const minDays = (typeof minDaysOverride === "number" && minDaysOverride > 0) ? minDaysOverride : (parseInt(basePf.min_trading_days) || 2);
+        const targetPct = (typeof payoutTargetPct === "number" && payoutTargetPct > 0) ? payoutTargetPct : (parseFloat(basePf.payout_target_pct || basePf.profit_target_pct) || 5.0);
+        const targetAmt = Math.round(cap * (targetPct / 100));
 
         const res = await fetch("/api/game/propfirm/activate-funded", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             consistency_rule_pct: consistencyChoice,
+            payout_target_pct: targetPct,
+            min_trading_days: minDays,
             prop_firm: this.propFirm
           })
         });
@@ -4305,6 +4343,11 @@
             daily_loss_limit_pct: dllPct,
             daily_loss_limit_amount: dllAmt,
             consistency_rule_pct: consistencyChoice,
+            profit_target_pct: targetPct,
+            profit_target_amount: targetAmt,
+            payout_target_pct: targetPct,
+            payout_target_amount: targetAmt,
+            payout_eligible: false,
             min_trading_days: minDays,
             trading_days_count: 0,
             days_traded: 0,
@@ -4366,6 +4409,28 @@
         this.dom.pfLifetimePayouts.innerText = this.formatCurrency(pf.lifetime_payouts || 0);
       }
 
+      // Check payout target & minimum trading days
+      const payoutTarget = parseFloat(pf.payout_target_amount || pf.profit_target_amount) || Math.round((pf.account_size || 50000) * ((pf.payout_target_pct || pf.profit_target_pct || 5.0) / 100));
+      const targetMet = availProfit >= payoutTarget && availProfit > 0;
+      const targetRowIcon = document.getElementById("pf-chk-target-icon");
+      const targetRowText = document.getElementById("pf-chk-target-text");
+      if (targetRowIcon && targetRowText) {
+        targetRowIcon.innerText = targetMet ? "✅" : "❌";
+        targetRowText.innerText = targetMet
+          ? `Payout Target Met: $${availProfit.toLocaleString()} / $${payoutTarget.toLocaleString()} reached`
+          : `Payout Target: $${availProfit.toLocaleString()} / $${payoutTarget.toLocaleString()} needed`;
+      }
+
+      const daysTraded = (typeof pf.trading_days_count === "number") ? pf.trading_days_count : (pf.days_traded || 0);
+      const minDays = parseInt(pf.min_trading_days) || 2;
+      const daysMet = daysTraded >= minDays;
+      const daysRowIcon = document.getElementById("pf-chk-days-icon");
+      const daysRowText = document.getElementById("pf-chk-days-text");
+      if (daysRowIcon && daysRowText) {
+        daysRowIcon.innerText = daysMet ? "✅" : "❌";
+        daysRowText.innerText = `Trading Days: ${daysTraded} / ${minDays} minimum days completed`;
+      }
+
       // Check consistency rule
       const rulePct = pf.consistency_rule_pct || 0;
       const lPct = (typeof pf.largest_day_pct === "number") ? pf.largest_day_pct : (pf.highest_day_pct || 0);
@@ -4395,7 +4460,7 @@
 
       // Confirm button state & styling
       if (this.dom.btnConfirmPayout) {
-        const canPayout = availProfit > 0 && isConsistent;
+        const canPayout = availProfit > 0 && targetMet && daysMet && isConsistent;
         this.dom.btnConfirmPayout.disabled = !canPayout;
         this.dom.btnConfirmPayout.style.opacity = canPayout ? "1" : "0.5";
         this.dom.btnConfirmPayout.style.cursor = canPayout ? "pointer" : "not-allowed";
@@ -4438,6 +4503,19 @@
       const availProfit = Math.max(0, Math.round((this.currentCapital - pf.account_size) * 100) / 100);
       if (amount > availProfit) {
         alert(`Requested payout ($${amount.toLocaleString()}) exceeds available profit ($${availProfit.toLocaleString()}).`);
+        return;
+      }
+
+      const daysTraded = (typeof pf.trading_days_count === "number") ? pf.trading_days_count : (pf.days_traded || 0);
+      const minDays = parseInt(pf.min_trading_days) || 2;
+      if (daysTraded < minDays) {
+        alert(`Minimum trading days not met: ${daysTraded} / ${minDays} days completed.`);
+        return;
+      }
+
+      const payoutTarget = parseFloat(pf.payout_target_amount || pf.profit_target_amount) || 0;
+      if (payoutTarget > 0 && availProfit < payoutTarget) {
+        alert(`Payout target not met: Available profit ($${availProfit.toLocaleString()}) is below the $${payoutTarget.toLocaleString()} payout target.`);
         return;
       }
 
@@ -4554,8 +4632,11 @@
         if (btnPhaseEval) btnPhaseEval.classList.toggle("active", !isFunded);
         if (btnPhaseFunded) btnPhaseFunded.classList.toggle("active", isFunded);
         document.getElementById("pf-direct-consistency-group")?.classList.toggle("hidden", !isFunded);
-        document.getElementById("pf-eval-target-group")?.classList.toggle("hidden", isFunded);
-        document.getElementById("pf-eval-mindays-group")?.classList.toggle("hidden", isFunded);
+        const targetLabel = document.getElementById("pf-setup-target-label");
+        const daysLabel = document.getElementById("pf-setup-mindays-label");
+        if (targetLabel) targetLabel.innerText = isFunded ? "FUNDED PAYOUT TARGET:" : "PROFIT TARGET:";
+        if (daysLabel) daysLabel.innerText = isFunded ? "MIN DAYS FOR PAYOUT:" : "MINIMUM TRADING DAYS:";
+        this.updatePropFirmSetupReadouts();
         if (this.dom.btnSavePropFirmSetup) {
           this.dom.btnSavePropFirmSetup.innerText = isFunded ? "Start Funded Account 🚀" : "Start Combine Challenge 🚀";
         }
@@ -4738,7 +4819,9 @@
         this.dom.btnActivateFunded.addEventListener("click", () => {
           const selected = document.querySelector("input[name='pf-consistency-choice']:checked");
           const val = selected ? parseFloat(selected.value) : 40.0;
-          this.activateFundedAccount(val);
+          const payoutTargetPct = parseFloat(document.getElementById("pf-funded-target-pct")?.value) || 5.0;
+          const minDays = parseInt(document.getElementById("pf-funded-mindays")?.value) || 2;
+          this.activateFundedAccount(val, payoutTargetPct, minDays);
         });
       }
 

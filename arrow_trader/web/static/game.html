@@ -192,7 +192,7 @@
           <!-- Profit Target Progress -->
           <div class="pf-metric-card" id="pf-target-card">
             <div class="pf-card-header">
-              <span class="pf-card-label">PROFIT TARGET</span>
+              <span class="pf-card-label" id="pf-target-label">PROFIT TARGET</span>
               <span class="pf-card-val font-mono" id="pf-target-val">$0 / $3,000 (0.0%)</span>
             </div>
             <div class="pf-progress-track">
@@ -1142,10 +1142,10 @@
         </div>
       </div>
 
-      <!-- Profit Target Slider (4% - 12%) -->
+      <!-- Profit / Payout Target Slider (4% - 12%) -->
       <div class="pf-field-group" id="pf-eval-target-group">
         <div class="pf-slider-header">
-          <label class="pf-label">PROFIT TARGET:</label>
+          <label class="pf-label" id="pf-setup-target-label">PROFIT TARGET:</label>
           <span class="pf-slider-readout font-mono glow-green" id="pf-target-readout">6.0% ($3,000)</span>
         </div>
         <input type="range" id="pf-slider-target" min="4" max="12" step="0.5" value="6" class="cyber-slider">
@@ -1159,7 +1159,7 @@
       <!-- Min Trading Days -->
       <div class="pf-field-group" id="pf-eval-mindays-group">
         <div class="pf-slider-header">
-          <label class="pf-label">MINIMUM TRADING DAYS:</label>
+          <label class="pf-label" id="pf-setup-mindays-label">MINIMUM TRADING DAYS:</label>
           <span class="pf-slider-readout font-mono" id="pf-mindays-readout">2 Days</span>
         </div>
         <input type="range" id="pf-slider-mindays" min="1" max="10" step="1" value="2" class="cyber-slider">
@@ -1293,6 +1293,17 @@
         </div>
       </div>
 
+      <div class="pf-field-group" style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <label for="pf-funded-target-pct" class="pf-label">PAYOUT TARGET (%):</label>
+          <input type="number" id="pf-funded-target-pct" value="5" min="1" max="20" step="0.5" class="cyber-input font-mono" style="width: 100%; margin-top: 4px;">
+        </div>
+        <div>
+          <label for="pf-funded-mindays" class="pf-label">MIN DAYS FOR PAYOUT:</label>
+          <input type="number" id="pf-funded-mindays" value="2" min="1" max="15" step="1" class="cyber-input font-mono" style="width: 100%; margin-top: 4px;">
+        </div>
+      </div>
+
       <div class="pf-field-group" style="margin-top: 12px;">
         <label for="pf-input-funded-start-date" class="pf-label">FUNDED ACCOUNT STARTING DATE (SEQUENTIAL):</label>
         <input type="date" id="pf-input-funded-start-date" class="cyber-input font-mono" min="2025-01-06" style="width: 100%; margin-top: 4px;">
@@ -1334,6 +1345,14 @@
 
       <!-- Rules Verification Check -->
       <div class="pf-compliance-box" id="pf-payout-compliance">
+        <div class="pf-check-row" id="pf-chk-target-row">
+          <span class="check-icon" id="pf-chk-target-icon">✅</span>
+          <span class="check-text" id="pf-chk-target-text">Payout Target: $3,000 / $2,500 reached</span>
+        </div>
+        <div class="pf-check-row" id="pf-chk-days-row">
+          <span class="check-icon" id="pf-chk-days-icon">✅</span>
+          <span class="check-text" id="pf-chk-days-text">Trading Days: 2 / 2 minimum days completed</span>
+        </div>
         <div class="pf-check-row" id="pf-chk-consistency-row">
           <span class="check-icon" id="pf-chk-cons-icon">✅</span>
           <span class="check-text" id="pf-chk-cons-text">Consistency Rule: 35.2% &le; 40.0% Max Day</span>

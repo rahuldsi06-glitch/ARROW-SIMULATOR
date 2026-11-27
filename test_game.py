@@ -740,9 +740,10 @@ class TestFastAPIRoutes(unittest.TestCase):
         pf2 = d2.json()["prop_firm"]
         self.assertEqual(pf2["status"], "passed")
 
-        # 2. Activate Funded Account carrying client_prop_firm characteristics and choosing 40% consistency rule
+        # 2. Activate Funded Account carrying client_prop_firm characteristics and choosing 40% consistency rule & 3% payout target ($4,500)
         act_res = self.client.post("/api/game/propfirm/activate-funded", json={
             "consistency_rule_pct": 40.0,
+            "payout_target_pct": 3.0,
             "prop_firm": pf2
         })
         self.assertEqual(act_res.status_code, 200)
@@ -990,6 +991,49 @@ class TestFastAPIRoutes(unittest.TestCase):
         self.assertEqual(pf2["daily_loss_limit_amount"], 400.0)
         self.assertTrue(pf2["daily_profit_limit_enabled"])
         self.assertEqual(pf2["daily_profit_limit_amount"], 800.0)
+
+    def test_funded_account_payout_target_and_min_days_eligibility(self):
+        # Direct Funded $50k with 5% Payout Target ($2,500), 3 Min Trading Days, 50% Consistency
+        res = self.client.post("/api/game/propfirm/setup", json={
+            "account_size": 50000.0,
+            "start_phase": "funded",
+            "consistency_rule_pct": 50.0,
+            "profit_target_pct": 5.0,
+            "min_trading_days": 3,
+            "drawdown_type": "static",
+            "max_drawdown_pct": 5.0
+        })
+        self.assertEqual(res.status_code, 200)
+        pf = res.json()["prop_firm"]
+        self.assertEqual(pf["payout_target_amount"], 2500.0)
+        self.assertFalse(pf["payout_eligible"])
+
+        # Day 1: +$1,000 (below target & below min days)
+        d1 = self.client.post("/api/game/propfirm/eod", json={"date": "2026-10-01", "day_pnl": 1000.0, "trades_count": 1, "prop_firm": pf}).json()["prop_firm"]
+        self.assertFalse(d1["payout_eligible"])
+        r1 = self.client.post("/api/game/propfirm/payout", json={"amount": 500.0, "prop_firm": d1})
+        self.assertEqual(r1.status_code, 400)
+        self.assertIn("Minimum trading days not met", r1.json()["detail"])
+
+        # Day 2: +$1,000 (total +$2,000, still below $2,500 target & 2/3 days)
+        d2 = self.client.post("/api/game/propfirm/eod", json={"date": "2026-10-02", "day_pnl": 1000.0, "trades_count": 1, "prop_firm": d1}).json()["prop_firm"]
+        self.assertFalse(d2["payout_eligible"])
+
+        # Day 3: +$200 (3/3 days met, but total +$2,200 < $2,500 payout target -> still rejected)
+        d3 = self.client.post("/api/game/propfirm/eod", json={"date": "2026-10-03", "day_pnl": 200.0, "trades_count": 1, "prop_firm": d2}).json()["prop_firm"]
+        self.assertFalse(d3["payout_eligible"])
+        r3 = self.client.post("/api/game/propfirm/payout", json={"amount": 1000.0, "prop_firm": d3})
+        self.assertEqual(r3.status_code, 400)
+        self.assertIn("Payout target not met", r3.json()["detail"])
+
+        # Day 4: +$800 (total +$3,000 >= $2,500, 4 >= 3 days, max day 1000/3000=33.3% <= 50% -> ELIGIBLE!)
+        d4 = self.client.post("/api/game/propfirm/eod", json={"date": "2026-10-04", "day_pnl": 800.0, "trades_count": 1, "prop_firm": d3}).json()["prop_firm"]
+        self.assertTrue(d4["payout_eligible"])
+        r4 = self.client.post("/api/game/propfirm/payout", json={"amount": 1500.0, "prop_firm": d4})
+        self.assertEqual(r4.status_code, 200)
+        pf_after = r4.json()["prop_firm"]
+        self.assertEqual(pf_after["current_equity"], 51500.0)
+        self.assertFalse(pf_after["payout_eligible"])  # $1,500 < $2,500 target for next payout
 
 
 if __name__ == "__main__":
